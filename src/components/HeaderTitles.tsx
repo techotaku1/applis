@@ -1,44 +1,56 @@
-export const tableHeaders = [
-  'Fecha',
-  'Trámite',
-  'Boleta',
-  'Pagado',
-  'Boletas Registradas',
-  'Emitido Por',
-  'Placa',
-  'Documento',
-  '#',
-  'Nombre',
-  'Cilindraje',
-  'Tipo Vehículo',
-  'Celular',
-  'Ciudad',
-  'Asesor',
-  'Novedad',
-  'Precio Neto',
-  'Tarifa Servicio',
-  'Comisión Extra',
-  '4x1000',
-  'Ganancia Bruta',
-  'Rappi',
-  'Observaciones',
-] as const;
+import { useCallback, useEffect, useRef } from 'react';
 
-export default function HeaderTitles() {
-  return (
-    <thead className="sticky top-0 z-30">
-      <tr className="bg-gray-50 uppercase">
-        {tableHeaders.map((header) => (
-          <th
-            key={header}
-            className={`bg-gray-50 px-6 py-3 whitespace-nowrap ${
-              header === 'Boleta' ? 'sticky left-0 z-10' : ''
-            }`}
-          >
-            {header}
-          </th>
-        ))}
-      </tr>
-    </thead>
+import type { TransactionRecord } from '~/types';
+
+interface SaveResult {
+  success: boolean;
+  error?: string;
+}
+
+export function useDebouncedSave(
+  onSave: (records: TransactionRecord[]) => Promise<SaveResult>,
+  onSuccess: () => void,
+  delay = 3000
+) {
+  // Use refs to avoid dependency issues
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const recordsRef = useRef<TransactionRecord[]>([]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const save = useCallback(
+    (records: TransactionRecord[]) => {
+      // Cancel any pending save
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      // Store latest records
+      recordsRef.current = records;
+
+      // Create new timeout
+      timeoutRef.current = setTimeout(async () => {
+        try {
+          const result = await onSave(recordsRef.current);
+          if (result.success) {
+            onSuccess();
+          }
+        } catch (error) {
+          console.error('Error al guardar:', error);
+        } finally {
+          timeoutRef.current = null;
+        }
+      }, delay);
+    },
+    [delay, onSave, onSuccess]
   );
+
+  return save;
 }

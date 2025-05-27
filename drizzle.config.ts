@@ -8,5 +8,5 @@ export default {
   dbCredentials: {
     url: env.DATABASE_URL,
   },
-  tablesFilter: ['gonzaapp-bd_*'],
+  tablesFilter: ['applis-bd'],
 } satisfies Config;
