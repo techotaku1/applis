@@ -15,7 +15,7 @@ interface SaveResult {
   error?: string;
 }
 
-type InputValue = string | number | boolean | null;
+type InputValue = string | number | boolean | Date | null;
 type InputType = 'text' | 'number' | 'date' | 'checkbox';
 type HandleInputChange = (
   id: string,
@@ -36,13 +36,49 @@ function getCurrentDate(): string {
   return formatter.format(today).toUpperCase();
 }
 
+// Add this function at the component level, before the TransactionTable function
+const getEmitidoPorClass = (value: string): string => {
+  if (value.includes('Panel Juan')) return 'emitido-por-panel-juan';
+  if (value.includes('Panel Evelio')) return 'emitido-por-panel-evelio';
+  if (value.includes('Previ usuario')) return 'emitido-por-previ-usuario';
+  if (value.includes('Previ pública')) return 'emitido-por-previ-publica';
+  if (value.includes('Previ Sonia')) return 'emitido-por-previ-sonia';
+  if (value.includes('Bolivar')) return 'emitido-por-bolivar';
+  if (value.includes('Axa Sebas')) return 'emitido-por-axa-sebas';
+  if (value.includes('Axa Yuli')) return 'emitido-por-axa-yuli';
+  if (value.includes('Axa gloria')) return 'emitido-por-axa-gloria';
+  if (value.includes('Axa Maryuri')) return 'emitido-por-axa-maryuri';
+  if (value.includes('Mundial nave')) return 'emitido-por-mundial-nave';
+  if (value.includes('Mundial fel')) return 'emitido-por-mundial-fel';
+  if (value.includes('No Emitir')) return 'emitido-por-no-emitir';
+  return '';
+};
+
+const emitidoPorOptions = [
+  'Panel Juan',
+  'Panel Evelio',
+  'Previ usuario',
+  'Previ pública',
+  'Previ Sonia',
+  'Bolivar suj',
+  'Axa Sebas',
+  'Axa Yuli',
+  'Axa gloria',
+  'Axa Maryuri',
+  'Mundial nave',
+  'Mundial fel',
+  'No Emitir',
+] as const;
+
+type EmitidoPorOption = (typeof emitidoPorOptions)[number];
+
 export default function TransactionTable({
   initialData,
   onUpdateRecordAction,
 }: {
   initialData: TransactionRecord[];
   onUpdateRecordAction: (records: TransactionRecord[]) => Promise<SaveResult>;
-}) {
+}): React.JSX.Element {
   const [data, setData] = useState<TransactionRecord[]>(initialData);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [totalSelected, setTotalSelected] = useState(0);
@@ -52,7 +88,6 @@ export default function TransactionTable({
   const [selectedPlates, setSelectedPlates] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const [showOriginalScrollbar, setShowOriginalScrollbar] = useState(true);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [rowsToDelete, setRowsToDelete] = useState<Set<string>>(new Set());
 
@@ -176,6 +211,37 @@ export default function TransactionTable({
     2000 // Aumentado a 2 segundos para dar más tiempo de agrupación
   );
 
+  // Move groupedByDate before it's used
+  const groupedByDate = useMemo(() => {
+    const groups = new Map<string, TransactionRecord[]>();
+
+    data.forEach((record) => {
+      if (!(record.fecha instanceof Date) || isNaN(record.fecha.getTime())) {
+        return;
+      }
+
+      const date = new Date(record.fecha);
+      const dateKey = date.toISOString().split('T')[0] ?? '';
+      if (!dateKey) return;
+
+      const existingGroup = groups.get(dateKey) ?? [];
+      groups.set(dateKey, [...existingGroup, record]);
+    });
+
+    // Ordenar registros dentro de cada grupo por hora
+    for (const [key, records] of groups.entries()) {
+      const sortedRecords = records.sort((a, b) => {
+        return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
+      });
+      groups.set(key, sortedRecords);
+    }
+
+    // Ordenar grupos por fecha
+    return Array.from(groups.entries()).sort(([dateA], [dateB]) =>
+      dateB.localeCompare(dateA)
+    );
+  }, [data]);
+
   // Type-safe input change handler
   const handleInputChange: HandleInputChange = useCallback(
     (id, field, value) => {
@@ -183,11 +249,18 @@ export default function TransactionTable({
         const newData = prevData.map((row) => {
           if (row.id === id) {
             const updatedRow = { ...row };
+            let newDate: Date;
 
             switch (field) {
               case 'fecha':
-                updatedRow[field] =
-                  typeof value === 'string' ? new Date(value) : row.fecha;
+                if (value instanceof Date) {
+                  newDate = value;
+                } else {
+                  newDate = new Date(value as string);
+                }
+                if (!isNaN(newDate.getTime())) {
+                  updatedRow[field] = newDate;
+                }
                 break;
               case 'precioNeto':
               case 'tarifaServicio':
@@ -207,12 +280,29 @@ export default function TransactionTable({
           }
           return row;
         });
+
         setUnsavedChanges(true);
         void debouncedSave(newData);
         return newData;
       });
+
+      // Cuando se cambia la fecha, actualizar la página actual
+      if (field === 'fecha' && value) {
+        const dateStr = (
+          value instanceof Date ? value : new Date(value as string)
+        )
+          .toISOString()
+          .split('T')[0];
+        // Encontrar la página correspondiente a la nueva fecha
+        const pageIndex = groupedByDate.findIndex(
+          ([gDate]) => gDate === dateStr
+        );
+        if (pageIndex !== -1) {
+          setCurrentPage(pageIndex + 1);
+        }
+      }
     },
-    [debouncedSave]
+    [debouncedSave, groupedByDate]
   );
 
   const handleSaveChanges = async () => {
@@ -262,14 +352,19 @@ export default function TransactionTable({
           return '';
         }
 
-        // Handle date values with time
-        if (type === 'date' && val instanceof Date) {
-          const date = new Date(val);
-          // Ajustar al horario de Bogotá
-          const colombiaDate = new Date(
-            date.toLocaleString('en-US', { timeZone: 'America/Bogota' })
-          );
-          return colombiaDate.toISOString().slice(0, 16);
+        if (field === 'fecha' && val instanceof Date) {
+          try {
+            const date = val;
+            return date.toISOString().slice(0, 16);
+          } catch (error) {
+            console.error('Error formatting date:', error);
+            return '';
+          }
+        }
+
+        // Format cilindraje with thousands separator
+        if (field === 'cilindraje' && typeof val === 'number') {
+          return formatCurrency(val);
         }
 
         // Handle money fields
@@ -293,33 +388,128 @@ export default function TransactionTable({
       // Calcular el ancho basado en el tipo de campo
       const getWidth = () => {
         switch (field) {
+          case 'impuesto4x1000':
+            return 'w-[70px]'; // Aumentado el ancho para 4x1000
+          case 'gananciaBruta':
+            return 'w-[90px]'; // Aumentado el ancho para ganancia bruta
+          case 'novedad':
+            return 'w-[100px]'; // Aumentado el ancho para novedad
+          case 'precioNeto':
+          case 'tarifaServicio':
+            return 'w-[80px]';
+          case 'tipoVehiculo':
+            return 'w-[90px]';
+          case 'boletasRegistradas':
+            return 'w-[100px]';
+          case 'placa':
+            return 'w-[80px]';
           case 'nombre':
           case 'observaciones':
-            return 'min-w-[250px]';
+            return 'w-[100px]';
           case 'tramite':
+            return 'w-[70px]';
           case 'emitidoPor':
+            return 'w-[70px]';
           case 'ciudad':
+            return 'w-[70px]';
           case 'asesor':
-            return 'min-w-[180px]';
+            return 'w-[100px]'; // Reducido de 100px
           case 'tipoDocumento':
-          case 'placa':
-            return 'min-w-[120px]';
+            return 'w-[40px]';
+          case 'fecha':
+            return 'w-[60px]';
+          case 'numeroDocumento':
+          case 'celular':
+            return 'w-[65px]';
+          case 'cilindraje':
+            return 'w-[50px]';
           default:
-            return 'min-w-[100px]';
+            return 'w-[50px]';
         }
       };
+
+      // En la sección donde se renderiza el select de emitidoPor:
+      if (field === 'emitidoPor') {
+        return (
+          <select
+            value={value as string}
+            onChange={(e) => handleInputChange(row.id, field, e.target.value)}
+            className={`emitido-por-select w-[105px] overflow-hidden rounded border text-ellipsis ${getEmitidoPorClass(value as string)}`}
+            title={value as string}
+          >
+            <option value="">Seleccionar...</option>
+            {emitidoPorOptions.map((option: EmitidoPorOption) => (
+              <option
+                key={option}
+                value={option}
+                className={`text-center ${getEmitidoPorClass(option)}`}
+              >
+                {option}
+              </option>
+            ))}
+          </select>
+        );
+      }
+
+      // Modificar la sección del renderInput donde se maneja el campo fecha
+      if (field === 'fecha') {
+        return (
+          <div className="relative flex w-full items-center justify-center">
+            <input
+              type="datetime-local"
+              value={formatValue(value)}
+              onChange={(e) => {
+                try {
+                  const inputDate = new Date(e.target.value + ':00Z');
+                  handleInputChange(row.id, field, inputDate);
+                } catch (error) {
+                  console.error('Error converting date:', error);
+                }
+              }}
+              className="table-date-field flex w-[140px] cursor-pointer items-center justify-center rounded border px-0 py-0.5 text-center text-[10px]"
+            />
+          </div>
+        );
+      }
+
+      const renderPlacaInput = () => (
+        <div className="relative flex items-center">
+          <input
+            type="text"
+            value={formatValue(value)}
+            title={formatValue(value)}
+            onChange={(e) =>
+              handleInputChange(row.id, field, e.target.value.toUpperCase())
+            }
+            className="placa-field w-[80px] cursor-pointer overflow-hidden rounded border hover:overflow-visible hover:text-clip"
+          />
+        </div>
+      );
+
+      if (field === ('placa' as keyof TransactionRecord)) {
+        return renderPlacaInput();
+      }
 
       return (
         <div className={`relative ${isMoneyField ? 'flex items-center' : ''}`}>
           <input
             type={
-              isMoneyField ? 'text' : type === 'date' ? 'datetime-local' : type
+              field === 'cilindraje'
+                ? 'text'
+                : isMoneyField
+                  ? 'text'
+                  : type === 'date'
+                    ? 'datetime-local'
+                    : type
             }
             value={formatValue(value)}
-            checked={type === 'checkbox' ? Boolean(value) : undefined}
+            title={formatValue(value)} // Agregar tooltip a todos los inputs
             onChange={(e) => {
               let newValue: InputValue;
-              if (isMoneyField) {
+              if (field === 'cilindraje') {
+                // Remove non-numeric characters and parse
+                newValue = parseNumber(e.target.value);
+              } else if (isMoneyField) {
                 newValue = parseNumber(e.target.value);
               } else if (type === 'checkbox') {
                 newValue = e.target.checked;
@@ -332,14 +522,18 @@ export default function TransactionTable({
             }}
             className={`${
               type === 'checkbox'
-                ? 'h-4 w-4 rounded border-gray-300'
-                : `rounded border p-2 ${getWidth()} ${
+                ? 'h-3 w-3 rounded border-gray-300'
+                : `flex items-center justify-center overflow-hidden rounded border px-0.5 py-0.5 text-center text-[10px] text-ellipsis ${getWidth()} ${
+                    field === 'cilindraje'
+                      ? '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+                      : ''
+                  } ${
                     field === 'placa'
-                      ? 'table-text-field text-center uppercase'
+                      ? 'table-text-field h-[1.5rem] leading-[1.5rem] uppercase'
                       : type === 'number' || isMoneyField
                         ? 'table-numeric-field'
                         : 'table-text-field'
-                  }`
+                  } hover:overflow-visible hover:text-clip`
             }`}
           />
         </div>
@@ -347,27 +541,6 @@ export default function TransactionTable({
     },
     [handleInputChange]
   );
-
-  // Group records by date while maintaining insertion order
-  const groupedByDate = useMemo(() => {
-    const groups = new Map<string, TransactionRecord[]>();
-
-    // Process records in original order
-    data.forEach((record) => {
-      const dateKey: string =
-        record.fecha instanceof Date && !isNaN(record.fecha.getTime())
-          ? (record.fecha.toISOString().split('T')[0] ?? '')
-          : '';
-      const existingGroup = groups.get(dateKey) ?? [];
-      // Add new records at the end to maintain oldest-to-newest order
-      groups.set(dateKey, [...existingGroup, record]);
-    });
-
-    // Sort dates in reverse chronological order (newest first)
-    return Array.from(groups.entries()).sort(([dateA], [dateB]) =>
-      dateB.localeCompare(dateA)
-    );
-  }, [data]);
 
   // Memoize the current date group and related data
   const { currentDateGroup, paginatedData, totalPages } = useMemo(() => {
@@ -406,34 +579,36 @@ export default function TransactionTable({
       <button
         onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
         disabled={currentPage === 1}
-        className="rounded px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        className="rounded px-4 py-2 text-sm font-medium text-black hover:bg-white/10 disabled:opacity-50"
       >
         Anterior
       </button>
-      <span className="flex items-center px-4 text-sm text-gray-700">
+      <span className="flex items-center px-4 text-sm text-black">
         Página {currentPage} de {totalPages}
       </span>
       <button
         onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
         disabled={currentPage === totalPages}
-        className="rounded px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        className="rounded px-4 py-2 text-sm font-medium text-black hover:bg-white/10 disabled:opacity-50"
       >
         Siguiente
       </button>
     </div>
   );
 
-  const handleZoomOut = () => {
-    const newZoom = Math.max(zoom - 0.1, 0.5);
-    setZoom(newZoom);
-    setShowOriginalScrollbar(newZoom === 1);
-  };
+  const handleZoomOut = useCallback(() => {
+    setZoom((prev) => {
+      const newZoom = Math.max(prev - 0.1, 0.5);
+      return newZoom;
+    });
+  }, []);
 
-  const handleZoomIn = () => {
-    const newZoom = Math.min(zoom + 0.1, 1);
-    setZoom(newZoom);
-    setShowOriginalScrollbar(newZoom === 1);
-  };
+  const handleZoomIn = useCallback(() => {
+    setZoom((prev) => {
+      const newZoom = Math.min(prev + 0.1, 1);
+      return newZoom;
+    });
+  }, []);
 
   const handleDeleteModeToggle = () => {
     setIsDeleteMode(!isDeleteMode);
@@ -464,6 +639,24 @@ export default function TransactionTable({
       }
     }
   };
+
+  const renderCheckbox = useCallback(
+    (
+      id: string,
+      field: keyof TransactionRecord,
+      value: boolean,
+      disabled?: boolean
+    ) => (
+      <input
+        type="checkbox"
+        checked={value}
+        disabled={disabled}
+        onChange={(e) => handleInputChange(id, field, e.target.checked)}
+        className="h-4 w-4 rounded border-gray-300 disabled:opacity-50"
+      />
+    ),
+    [handleInputChange]
+  );
 
   return (
     <div className="relative">
@@ -526,7 +719,7 @@ export default function TransactionTable({
             >
               -
             </button>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-black">
               {Math.round(zoom * 100)}%
             </span>
             <button
@@ -538,29 +731,38 @@ export default function TransactionTable({
             </button>
           </div>
         </div>
-        <time className="font-display text-2xl text-gray-600">
+        <time className="font-display text-2xl font-bold text-black">
           {currentDate}
         </time>
       </div>
 
+      {/* Modificar la sección de la tabla */}
       <div
-        className={`overflow-x-auto shadow-md sm:rounded-lg ${
-          showOriginalScrollbar ? '' : 'overflow-x-hidden'
-        }`}
+        className="table-container"
+        style={{
+          backgroundImage: 'url("/background-table.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          borderRadius: '8px',
+          padding: '1rem',
+        }}
       >
         <div
-          className="max-h-[calc(100vh-200px)] w-full"
+          className="table-scroll-container"
           style={{
             transform: `scale(${zoom})`,
             transformOrigin: 'left top',
             width: `${(1 / zoom) * 100}%`,
+            height: `${(1 / zoom) * 100}%`,
             overflowX: zoom === 1 ? 'auto' : 'scroll',
+            overflowY: 'auto',
           }}
         >
           <table className="w-full text-left text-sm text-gray-500">
             <HeaderTitles />
             <tbody>
-              {paginatedData.map((row) => {
+              {paginatedData.map((row, index) => {
                 const {
                   precioNetoAjustado,
                   tarifaServicioAjustada,
@@ -579,10 +781,12 @@ export default function TransactionTable({
                 return (
                   <tr
                     key={row.id}
-                    className="border-b bg-white hover:bg-gray-50"
+                    className={`border-b hover:bg-gray-50 ${
+                      row.pagado ? getEmitidoPorClass(row.emitidoPor) : ''
+                    }`}
                   >
                     {isDeleteMode && (
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-0.5 py-0.5 whitespace-nowrap">
                         <input
                           type="checkbox"
                           checked={rowsToDelete.has(row.id)}
@@ -591,101 +795,179 @@ export default function TransactionTable({
                         />
                       </td>
                     )}
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 0 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'fecha', 'date')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 1 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'tramite')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.has(row.id)}
-                        onChange={() => handleRowSelect(row.id, row.precioNeto)}
-                        disabled={row.pagado}
-                        className="h-4 w-4 rounded border-gray-300 disabled:opacity-50"
-                      />
+                    <td className="table-checkbox-cell whitespace-nowrap">
+                      <div className="table-checkbox-wrapper">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.has(row.id)}
+                          onChange={() =>
+                            handleRowSelect(row.id, row.precioNeto)
+                          }
+                          disabled={row.pagado}
+                          className="h-4 w-4 rounded border-gray-400 disabled:opacity-50"
+                        />
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {renderInput(rowWithFormulas, 'pagado', 'checkbox')}
+                    <td className="table-checkbox-cell whitespace-nowrap">
+                      <div className="table-checkbox-wrapper">
+                        {renderCheckbox(row.id, 'pagado', row.pagado)}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 4 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(
                         rowWithFormulas,
                         'boletasRegistradas',
                         'number'
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 5 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'emitidoPor')}
                     </td>
-                    <td className="px-6 py-4 text-xl whitespace-nowrap">
+                    <td className="table-cell whitespace-nowrap">
                       {renderInput(rowWithFormulas, 'placa')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 7 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'tipoDocumento')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 8 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'numeroDocumento')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 9 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'nombre')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 10 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'cilindraje', 'number')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 11 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'tipoVehiculo')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 12 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'celular')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 13 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'ciudad')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 14 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'asesor')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 15 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'novedad')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 16 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'precioNeto', 'number')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 17 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'tarifaServicio', 'number')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={row.comisionExtra}
-                        onChange={(e) =>
-                          handleInputChange(
-                            row.id,
-                            'comisionExtra',
-                            e.target.checked
-                          )
-                        }
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
+                    <td className="table-checkbox-cell whitespace-nowrap">
+                      <div className="table-checkbox-wrapper">
+                        <input
+                          type="checkbox"
+                          checked={row.comisionExtra}
+                          onChange={(e) =>
+                            handleInputChange(
+                              row.id,
+                              'comisionExtra',
+                              e.target.checked
+                            )
+                          }
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 19 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'impuesto4x1000', 'number')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`table-cell whitespace-nowrap ${
+                        index === 20 ? 'border-r-0' : ''
+                      }`}
+                    >
                       {renderInput(rowWithFormulas, 'gananciaBruta', 'number')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={row.rappi}
-                        onChange={(e) =>
-                          handleInputChange(row.id, 'rappi', e.target.checked)
-                        }
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
+                    <td className="table-checkbox-cell whitespace-nowrap">
+                      <div className="table-checkbox-wrapper">
+                        <input
+                          type="checkbox"
+                          checked={row.rappi}
+                          onChange={(e) =>
+                            handleInputChange(row.id, 'rappi', e.target.checked)
+                          }
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="table-cell whitespace-nowrap">
                       {renderInput(rowWithFormulas, 'observaciones')}
                     </td>
                   </tr>
