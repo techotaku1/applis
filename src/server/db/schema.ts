@@ -3,45 +3,62 @@ import {
   varchar,
   boolean,
   timestamp,
-  integer,
   decimal,
+  pgEnum,
 } from 'drizzle-orm/pg-core';
 
-export const transactions = pgTable('transactions', {
+// Enums
+export const rateTypeEnum = pgEnum('rate_type', [
+  'HOURLY_USD',
+  'HOURLY_FL',
+  'DAILY_USD',
+  'DAILY_FL',
+  'PER_APT_FL',
+]);
+
+export const taxStatusEnum = pgEnum('tax_status', ['WITH_TAX', 'WITHOUT_TAX']);
+
+// Properties table
+export const properties = pgTable('properties', {
   id: varchar('id').primaryKey(),
-  fecha: timestamp('fecha').notNull(), // Cambiado de date a timestamp
-  tramite: varchar('tramite').notNull(),
-  pagado: boolean('pagado').notNull().default(false),
-  boleta: boolean('boleta').notNull().default(false),
-  boletasRegistradas: decimal('boletas_registradas', {
-    precision: 12,
-    scale: 2,
-  }).notNull(),
-  emitidoPor: varchar('emitido_por').notNull(),
-  placa: varchar('placa').notNull(),
-  tipoDocumento: varchar('tipo_documento').notNull(),
-  numeroDocumento: varchar('numero_documento').notNull(),
-  nombre: varchar('nombre').notNull(),
-  cilindraje: integer('cilindraje'),
-  tipoVehiculo: varchar('tipo_vehiculo'),
-  celular: varchar('celular'),
-  ciudad: varchar('ciudad').notNull(),
-  asesor: varchar('asesor').notNull(),
-  novedad: varchar('novedad'),
-  precioNeto: decimal('precio_neto', { precision: 12, scale: 2 }).notNull(),
-  comisionExtra: boolean('comision_extra').notNull().default(false),
-  tarifaServicio: decimal('tarifa_servicio', {
-    precision: 12,
-    scale: 2,
-  }).notNull(),
-  impuesto4x1000: decimal('impuesto_4x1000', {
-    precision: 12,
-    scale: 2,
-  }).notNull(),
-  gananciaBruta: decimal('ganancia_bruta', {
-    precision: 12,
-    scale: 2,
-  }).notNull(),
-  rappi: boolean('rappi').notNull().default(false),
-  observaciones: varchar('observaciones'),
+  name: varchar('name').notNull(),
+  clientName: varchar('client_name').notNull(),
+  regularRate: decimal('regular_rate', { precision: 10, scale: 2 }).notNull(),
+  rateType: rateTypeEnum('rate_type').notNull(),
+  refreshRate: decimal('refresh_rate', { precision: 10, scale: 2 }).notNull(),
+  standardHours: varchar('standard_hours').notNull(),
+  taxStatus: taxStatusEnum('tax_status').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Employees table
+export const employees = pgTable('employees', {
+  id: varchar('id').primaryKey(),
+  firstName: varchar('first_name').notNull(),
+  lastName: varchar('last_name').notNull(),
+  active: boolean('active').default(true).notNull(),
+  startDate: timestamp('start_date').notNull(),
+  phone: varchar('phone'),
+  email: varchar('email'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Cleaning Services table
+export const cleaningServices = pgTable('cleaning_services', {
+  id: varchar('id').primaryKey(),
+  propertyId: varchar('property_id')
+    .references(() => properties.id)
+    .notNull(),
+  employeeId: varchar('employee_id')
+    .references(() => employees.id)
+    .notNull(),
+  serviceDate: timestamp('service_date').notNull(),
+  hoursWorked: decimal('hours_worked', { precision: 5, scale: 2 }).notNull(),
+  isRefreshService: boolean('is_refresh_service').default(false).notNull(),
+  totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
+  notes: varchar('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

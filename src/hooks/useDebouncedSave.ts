@@ -1,56 +1,29 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 
-import type { TransactionRecord } from '~/types';
-
-interface SaveResult {
-  success: boolean;
-  error?: string;
-}
+import type { CleaningService, SaveResult } from '~/types';
 
 export function useDebouncedSave(
-  onSave: (records: TransactionRecord[]) => Promise<SaveResult>,
+  saveFunction: (data: CleaningService[]) => Promise<SaveResult>,
   onSuccess: () => void,
-  delay = 3000
+  delay: number
 ) {
-  // Use refs to avoid dependency issues
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const recordsRef = useRef<TransactionRecord[]>([]);
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  const save = useCallback(
-    (records: TransactionRecord[]) => {
-      // Cancel any pending save
+  const debouncedSave = useCallback(
+    (data: CleaningService[]) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
 
-      // Store latest records
-      recordsRef.current = records;
-
-      // Create new timeout
       timeoutRef.current = setTimeout(async () => {
-        try {
-          const result = await onSave(recordsRef.current);
-          if (result.success) {
-            onSuccess();
-          }
-        } catch (error) {
-          console.error('Error al guardar:', error);
-        } finally {
-          timeoutRef.current = null;
+        const result = await saveFunction(data);
+        if (result.success) {
+          onSuccess();
         }
       }, delay);
     },
-    [delay, onSave, onSuccess]
+    [saveFunction, onSuccess, delay]
   );
 
-  return save;
+  return debouncedSave;
 }

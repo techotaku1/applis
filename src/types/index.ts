@@ -1,3 +1,54 @@
+export enum RateType {
+  HOURLY_USD = 'HOURLY_USD',
+  HOURLY_FL = 'HOURLY_FL',
+  DAILY_USD = 'DAILY_USD',
+  DAILY_FL = 'DAILY_FL',
+  PER_APT_FL = 'PER_APT_FL',
+}
+
+export enum TaxStatus {
+  WITH_TAX = 'WITH_TAX',
+  WITHOUT_TAX = 'WITHOUT_TAX',
+}
+
+export interface Property {
+  id: string;
+  name: string;
+  clientName: string;
+  regularRate: number;
+  rateType: RateType;
+  refreshRate: number;
+  standardHours: string;
+  taxStatus: TaxStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Employee {
+  id: string;
+  firstName: string;
+  lastName: string;
+  active: boolean;
+  startDate: Date;
+  phone?: string | null;
+  email?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CleaningService {
+  id: string;
+  propertyId: string;
+  employeeId: string;
+  serviceDate: Date;
+  hoursWorked: number;
+  isRefreshService: boolean;
+  totalAmount: number;
+  notes?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface TransactionRecord {
   id: string;
   fecha: Date;
@@ -23,4 +74,9 @@ export interface TransactionRecord {
   gananciaBruta: number;
   rappi: boolean;
   observaciones: string | null;
+}
+
+export interface SaveResult {
+  success: boolean;
+  error?: string;
 }
