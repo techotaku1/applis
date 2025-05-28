@@ -6,7 +6,7 @@ import { type Metadata } from 'next';
 import Background from '~/components/Background';
 
 export const metadata: Metadata = {
-  title: 'GonzaApp',
+  title: 'AppLis',
   description: 'Aplicación de gestión de trámites',
   icons: [{ rel: 'icon', url: './favicon.ico' }],
 };
