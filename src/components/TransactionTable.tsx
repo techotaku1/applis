@@ -3,7 +3,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
 import { useDebouncedSave } from '~/hooks/useDebouncedSave';
-import { createService, deleteServices } from '~/server/actions/tableGeneral';
+import {
+  createService,
+  deleteServices,
+  getProperties,
+} from '~/server/actions/tableGeneral';
 
 import type { CleaningService, SaveResult } from '~/types';
 
@@ -49,32 +53,50 @@ export default function TransactionTable({
   const [rowsToDelete, setRowsToDelete] = useState<Set<string>>(new Set());
 
   const addNewRow = async () => {
-    const now = new Date();
-    const colombiaDate = new Date(
-      now.toLocaleString('en-US', { timeZone: 'America/Bogota' })
-    );
+    try {
+      const now = new Date();
+      const colombiaDate = new Date(
+        now.toLocaleString('en-US', { timeZone: 'America/Bogota' })
+      );
 
-    const newRowId = crypto.randomUUID();
-    const newRow: CleaningService = {
-      id: newRowId,
-      propertyId: '',
-      employeeId: '',
-      serviceDate: colombiaDate,
-      hoursWorked: 0,
-      isRefreshService: false,
-      totalAmount: 0,
-      notes: null,
-      createdAt: colombiaDate,
-      updatedAt: colombiaDate,
-    };
+      const propertiesResult = await getProperties();
+      if (!propertiesResult || propertiesResult.length === 0) {
+        alert('Debe crear al menos una propiedad antes de agregar servicios.');
+        return;
+      }
 
-    const result = await createService(newRow);
-    if (result.success) {
-      setData((prevData) => [newRow, ...prevData]);
-      // Forzar un guardado inmediato del nuevo registro
-      await handleSaveOperation([newRow, ...data]);
-    } else {
-      console.error('Error creating new service:', result.error);
+      const firstProperty = propertiesResult[0];
+      if (!firstProperty) {
+        alert('No se encontraron propiedades disponibles.');
+        return;
+      }
+
+      const newRowId = crypto.randomUUID();
+      const newRow: CleaningService = {
+        id: newRowId,
+        propertyId: firstProperty.id,
+        employeeId: '',
+        serviceDate: colombiaDate,
+        hoursWorked: 0,
+        isRefreshService: false,
+        totalAmount: 0,
+        notes: null,
+        createdAt: colombiaDate,
+        updatedAt: colombiaDate,
+      };
+
+      const result = await createService(newRow);
+      if (result.success) {
+        setData((prevData) => [newRow, ...prevData]);
+        await handleSaveOperation([newRow, ...data]);
+      } else {
+        alert(result.error ?? 'Error al crear el servicio');
+      }
+    } catch (error) {
+      console.error('Error creating new service:', error);
+      alert(
+        'Error al crear el servicio. Verifique que existan propiedades registradas.'
+      );
     }
   };
 

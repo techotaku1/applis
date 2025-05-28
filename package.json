@@ -17,12 +17,14 @@
     "lint:fix": "next lint --fix",
     "preview": "next build && next start",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed:properties": "tsx src/scripts/seedProperties.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0",
     "@t3-oss/env-nextjs": "^0.13.4",
     "@types/lodash": "^4.17.17",
+    "@types/uuid": "^10.0.0",
     "drizzle-orm": "^0.43.1",
     "esbuild": "^0.25.4",
     "globals": "^16.2.0",
@@ -31,6 +33,7 @@
     "postgres": "^3.4.7",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "uuid": "^11.1.0",
     "zod": "^3.25.30"
   },
   "devDependencies": {
@@ -56,6 +59,7 @@
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "tailwindcss": "^4.1.7",
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.32.1"
   },

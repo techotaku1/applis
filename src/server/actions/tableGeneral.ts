@@ -15,12 +15,43 @@ import type {
   TaxStatus,
 } from '~/types';
 
+class DatabaseError extends Error {
+  constructor(
+    message: string,
+    public cause?: unknown
+  ) {
+    super(message);
+    this.name = 'DatabaseError';
+  }
+}
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  retries = 3,
+  delay = 1000
+): Promise<T> {
+  let lastError;
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (i < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
 export async function getServices(): Promise<CleaningService[]> {
   try {
-    const results = await db
-      .select()
-      .from(cleaningServices)
-      .orderBy(desc(cleaningServices.serviceDate));
+    const results = await withRetry(() =>
+      db
+        .select()
+        .from(cleaningServices)
+        .orderBy(desc(cleaningServices.serviceDate))
+    );
 
     return results.map((record) => ({
       ...record,
@@ -30,36 +61,49 @@ export async function getServices(): Promise<CleaningService[]> {
     }));
   } catch (error) {
     console.error('Error fetching services:', error);
-    throw new Error('Failed to fetch services');
+    if (error instanceof Error) {
+      throw new DatabaseError(
+        `Database operation failed: ${error.message}`,
+        error
+      );
+    }
+    throw new DatabaseError(
+      'An unexpected error occurred while fetching services'
+    );
   }
 }
 
 export async function getProperties(): Promise<Property[]> {
-  const results = await db.select().from(properties);
-  return results.map((record) => ({
-    ...record,
-    regularRate: Number(record.regularRate),
-    refreshRate: Number(record.refreshRate),
-    rateType: record.rateType as RateType,
-    taxStatus: record.taxStatus as TaxStatus,
-  }));
+  try {
+    const results = await withRetry(() => db.select().from(properties));
+    return results.map((record) => ({
+      ...record,
+      regularRate: Number(record.regularRate),
+      refreshRate: Number(record.refreshRate),
+      rateType: record.rateType as RateType,
+      taxStatus: record.taxStatus as TaxStatus,
+    }));
+  } catch (error) {
+    console.error('Error fetching properties:', error);
+    throw new DatabaseError('Failed to fetch properties', error);
+  }
 }
 
 // Mantener compatibilidad con la interfaz anterior
-export async function getTransactions() {
-  return [];
+export async function getTransactions(): Promise<[]> {
+  return Promise.resolve([]);
 }
 
-export async function updateRecords() {
-  return { success: true };
+export async function updateRecords(): Promise<{ success: boolean }> {
+  return Promise.resolve({ success: true });
 }
 
-export async function createRecord() {
-  return { success: true };
+export async function createRecord(): Promise<{ success: boolean }> {
+  return Promise.resolve({ success: true });
 }
 
-export async function deleteRecords() {
-  return { success: true };
+export async function deleteRecords(): Promise<{ success: boolean }> {
+  return Promise.resolve({ success: true });
 }
 
 export async function getEmployees(): Promise<Employee[]> {
