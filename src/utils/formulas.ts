@@ -40,12 +40,22 @@ export function calculateDailyHours(
     .reduce((total, service) => total + service.hoursWorked, 0);
 }
 
+export function formatTotalHours(hours: number): string {
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+  return `${wholeHours}h ${minutes.toString().padStart(2, '0')}m`;
+}
+
 export function calculateEmployeeMonthlyHours(
   services: CleaningService[],
   employeeId: string,
   month: number,
   year: number
-): { totalHours: number; dailyHours: Map<string, number> } {
+): {
+  totalHours: number;
+  totalFormatted: string;
+  dailyHours: Map<string, number>;
+} {
   const employeeServices = services.filter(
     (service) =>
       service.employeeId === employeeId &&
@@ -57,7 +67,6 @@ export function calculateEmployeeMonthlyHours(
   let totalHours = 0;
 
   employeeServices.forEach((service) => {
-    // Corregir el manejo de nullish
     const dateStr = new Date(service.serviceDate).toISOString().split('T')[0];
     if (!dateStr) return;
 
@@ -68,6 +77,7 @@ export function calculateEmployeeMonthlyHours(
 
   return {
     totalHours,
+    totalFormatted: formatTotalHours(totalHours),
     dailyHours,
   };
 }

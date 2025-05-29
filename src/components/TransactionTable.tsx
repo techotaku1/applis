@@ -16,6 +16,7 @@ import {
   type Property,
   type Employee,
 } from '~/types';
+import { formatRateType } from '~/utils/formatters';
 
 import '~/styles/spinner.css';
 import HeaderTitles from './HeaderTitles';
@@ -35,15 +36,43 @@ interface TransactionTableProps {
 
 function getCurrentColombiaDate(): Date {
   const now = new Date();
-  const colombiaDate = new Date(
-    now.toLocaleString('en-US', { timeZone: 'America/Bogota' })
-  );
-  const offset = colombiaDate.getTimezoneOffset();
-  colombiaDate.setMinutes(colombiaDate.getMinutes() - offset);
-  return colombiaDate;
+  const colombiaOptions = {
+    timeZone: 'America/Bogota',
+    year: 'numeric' as const,
+    month: '2-digit' as const,
+    day: '2-digit' as const,
+    hour: '2-digit' as const,
+    minute: '2-digit' as const,
+    second: '2-digit' as const,
+    hour12: false,
+  };
+
+  const colombiaDateStr = now.toLocaleString('en-US', colombiaOptions);
+  return new Date(colombiaDateStr);
+}
+
+// Update the hours calculation function to preserve minutes
+function calculateHoursBetweenDates(startDate: Date, endDate: Date): number {
+  const diff = endDate.getTime() - startDate.getTime();
+  const diffInMinutes = diff / (1000 * 60); // Get total minutes
+  const hours = Math.floor(diffInMinutes / 60); // Get whole hours
+  const minutes = diffInMinutes % 60; // Get remaining minutes
+  return hours + minutes / 60; // Convert to decimal hours
+}
+
+// Update the formatting function to handle minutes better
+function formatHoursAndMinutes(totalHours: number): string {
+  const hours = Math.floor(totalHours);
+  const decimalPart = totalHours - hours;
+  const minutes = Math.round(decimalPart * 60);
+  return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
 }
 
 function formatCurrentDate(date: Date): string {
+  const colombiaDate = new Date(
+    date.toLocaleString('en-US', { timeZone: 'America/Bogota' })
+  );
+
   const options = {
     weekday: 'long',
     year: 'numeric',
@@ -52,7 +81,9 @@ function formatCurrentDate(date: Date): string {
     timeZone: 'America/Bogota',
   } as const;
 
-  return new Intl.DateTimeFormat('es-CO', options).format(date).toUpperCase();
+  return new Intl.DateTimeFormat('es-CO', options)
+    .format(colombiaDate)
+    .toUpperCase();
 }
 
 interface PropertySelectProps {
@@ -96,21 +127,74 @@ const EmployeeSelect = ({
   onChange,
   employees,
 }: EmployeeSelectProps) => (
-  <select
-    value={value}
-    onChange={(e) => onChange(e.target.value)}
-    className="table-select-field w-full text-center"
-  >
-    <option value="" className="text-center">
-      Seleccionar empleado
-    </option>
-    {employees.map((employee: Employee) => (
-      <option key={employee.id} value={employee.id} className="text-center">
-        {employee.firstName} {employee.lastName}
+  <div className="relative w-full">
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="table-select-field w-full"
+    >
+      <option value="" className="text-center">
+        Seleccionar empleado
       </option>
-    ))}
-  </select>
+      {employees.map((employee: Employee) => (
+        <option key={employee.id} value={employee.id} className="text-center">
+          {employee.firstName} {employee.lastName}
+        </option>
+      ))}
+    </select>
+  </div>
 );
+
+function calculateTotalAmount(
+  property: Property,
+  isRefresh: boolean,
+  hours: number
+) {
+  if (isRefresh) {
+    return property.refreshRate;
+  }
+
+  switch (property.rateType) {
+    case RATE_TYPES.HOURLY_USD:
+    case RATE_TYPES.HOURLY_FL:
+      return property.regularRate * hours;
+    case RATE_TYPES.DAILY_USD:
+    case RATE_TYPES.DAILY_FL:
+    case RATE_TYPES.PER_APT_FL:
+      return property.regularRate;
+    default:
+      return 0;
+  }
+}
+
+// Add these utility functions at the top of the file
+function formatDateToLocalInput(date: Date): string {
+  try {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return new Date().toISOString().slice(0, 16);
+  }
+}
+
+function parseLocalDateToUTC(dateStr: string): Date {
+  try {
+    const localDate = new Date(dateStr);
+    if (isNaN(localDate.getTime())) {
+      throw new Error('Invalid date');
+    }
+    return localDate;
+  } catch (error) {
+    console.error('Error parsing date:', error);
+    return new Date();
+  }
+}
 
 export default function TransactionTable({
   initialData,
@@ -142,10 +226,10 @@ export default function TransactionTable({
 
   const addNewRow = async () => {
     try {
+      // Use current Colombia time for both dates
       const colombiaDate = getCurrentColombiaDate();
 
       const results = await Promise.all([getProperties(), getEmployees()]);
-
       const firstProperty = results[0]?.[0];
       const firstEmployee = results[1]?.[0];
 
@@ -161,7 +245,7 @@ export default function TransactionTable({
         workDate: colombiaDate,
         hoursWorked: 0,
         isRefreshService: false,
-        totalAmount: calculateInitialAmount(firstProperty),
+        totalAmount: calculateTotalAmount(firstProperty, false, 0),
         notes: null,
         createdAt: colombiaDate,
         updatedAt: colombiaDate,
@@ -171,6 +255,15 @@ export default function TransactionTable({
       if (result.success) {
         setData((prevData) => [newRow, ...prevData]);
         await handleSaveOperation([newRow, ...data]);
+
+        // Update current page to today's date
+        const todayStr = colombiaDate.toISOString().split('T')[0];
+        const pageIndex = groupedByDate.findIndex(
+          ([date]) => date === todayStr
+        );
+        if (pageIndex !== -1) {
+          setCurrentPage(pageIndex + 1);
+        }
       } else {
         throw new Error(result.error ?? 'Error al crear el servicio');
       }
@@ -181,31 +274,6 @@ export default function TransactionTable({
       alert(`Error al crear el servicio: ${errorMessage}`);
     }
   };
-
-  const calculateInitialAmount = (property: Property) => {
-    return property.regularRate;
-  };
-
-  const calculateTotalAmount = useCallback(
-    (property: Property, isRefresh: boolean, hours: number) => {
-      if (isRefresh) {
-        return property.refreshRate;
-      }
-
-      switch (property.rateType) {
-        case RATE_TYPES.HOURLY_USD:
-        case RATE_TYPES.HOURLY_FL:
-          return property.regularRate * hours;
-        case RATE_TYPES.DAILY_USD:
-        case RATE_TYPES.DAILY_FL:
-        case RATE_TYPES.PER_APT_FL:
-          return property.regularRate;
-        default:
-          return 0;
-      }
-    },
-    []
-  );
 
   const handlePropertyChange = useCallback(
     (serviceId: string, propertyId: string, property: Property) => {
@@ -230,7 +298,7 @@ export default function TransactionTable({
         })
       );
     },
-    [calculateTotalAmount] // Add calculateTotalAmount as dependency
+    [] // Removed calculateTotalAmount dependency
   );
 
   const handleSaveSuccess = useCallback(() => {
@@ -302,11 +370,17 @@ export default function TransactionTable({
           if (row.id === id) {
             const updatedRow = { ...row };
 
-            if (field === 'serviceDate' && value instanceof Date) {
-              updatedRow.serviceDate = value;
-            } else if (field === 'hoursWorked' || field === 'totalAmount') {
-              updatedRow[field] =
-                typeof value === 'string' ? Number(value) : (value as number);
+            if (field === 'serviceDate' || field === 'workDate') {
+              const newDate = value instanceof Date ? value : new Date();
+              updatedRow[field] = newDate;
+
+              // Actualizar hoursWorked cuando cambie cualquiera de las fechas
+              if (updatedRow.serviceDate && updatedRow.workDate) {
+                updatedRow.hoursWorked = calculateHoursBetweenDates(
+                  updatedRow.serviceDate,
+                  updatedRow.workDate
+                );
+              }
             } else {
               updatedRow[field] = value as never;
             }
@@ -358,16 +432,19 @@ export default function TransactionTable({
   );
 
   // Modificar la función renderInput para mostrar el valor del servicio correctamente
+  // Actualiza estas definiciones de tipos antes del renderInput
+  type ServiceField = keyof CleaningService;
+  type NumericFields = Extract<ServiceField, 'hoursWorked' | 'totalAmount'>;
+
+  // Inside renderInput function, update the types and field checks
   const renderInput = useCallback(
-    (
-      row: CleaningService,
-      field: keyof CleaningService,
-      _type: InputType = 'text'
-    ) => {
+    (row: CleaningService, field: ServiceField, _type: InputType = 'text') => {
       const value = row[field];
-      const isMoneyField = ['totalAmount', 'hoursWorked'].includes(
-        field as string
-      );
+
+      // Fix the numeric field type checking
+      const isNumericField = (name: ServiceField): name is NumericFields => {
+        return ['hoursWorked', 'totalAmount'].includes(name);
+      };
 
       const getWidth = () => {
         switch (field) {
@@ -390,48 +467,33 @@ export default function TransactionTable({
       // Manejar fechas (tanto serviceDate como workDate)
       if (field === 'serviceDate' || field === 'workDate') {
         const dateValue = value instanceof Date ? value : new Date();
-        const isWorkDate = field === 'workDate';
-
-        if (isWorkDate) {
-          return (
-            <div className="flex items-center justify-center px-2">
-              <input
-                type="datetime-local"
-                value={dateValue.toISOString().slice(0, 16)}
-                onChange={(e) => {
-                  try {
-                    const newDate = new Date(e.target.value);
-                    const colombiaDate = new Date(
-                      newDate.toLocaleString('en-US', {
-                        timeZone: 'America/Bogota',
-                      })
-                    );
-                    handleInputChange(row.id, field, colombiaDate);
-                  } catch (error) {
-                    console.error('Error converting date:', error);
-                  }
-                }}
-                className="table-date-field flex cursor-pointer items-center justify-center rounded border px-0 py-0.5 text-center text-[10px]"
-              />
-            </div>
-          );
-        }
 
         return (
           <div className="relative flex w-full items-center justify-center">
             <input
               type="datetime-local"
-              value={dateValue.toISOString().slice(0, 16)}
+              value={formatDateToLocalInput(dateValue)}
               onChange={(e) => {
                 try {
-                  const newDate = new Date(e.target.value);
-                  handleInputChange(row.id, field, newDate);
-                } catch (error) {
-                  console.error('Error converting date:', error);
+                  const date = parseLocalDateToUTC(e.target.value);
+                  handleInputChange(row.id, field, date);
+                } catch (err) {
+                  console.error('Error handling date input:', err);
                 }
               }}
               className="table-date-field flex cursor-pointer items-center justify-center rounded border px-0 py-0.5 text-center text-[10px]"
             />
+          </div>
+        );
+      }
+
+      // For hoursWorked field, make it read-only since it's auto-calculated
+      if (field === 'hoursWorked') {
+        return (
+          <div className="flex items-center justify-center">
+            <span className="text-sm font-medium">
+              {formatHoursAndMinutes(Number(value ?? 0))}
+            </span>
           </div>
         );
       }
@@ -441,12 +503,15 @@ export default function TransactionTable({
         const property = properties.find((p) => p.id === row.propertyId);
         if (!property) return null;
 
-        // Formatear el tipo de tarifa
-        const formattedRate = `${property.regularRate} ${property.rateType}`;
+        // Usar el formateador para mostrar el tipo de tarifa
+        const formattedRate = formatRateType(
+          property.rateType,
+          property.regularRate
+        );
 
         return (
           <div className="flex flex-col items-center justify-center px-2">
-            <span className="font-medium">{formattedRate}</span>
+            <span className="text-sm font-medium">{formattedRate}</span>
           </div>
         );
       }
@@ -495,28 +560,23 @@ export default function TransactionTable({
       }
 
       // Input numérico para horas
-      if (field === 'hoursWorked') {
+      if (isNumericField(field)) {
         return (
-          <input
-            type="number"
-            value={value?.toString() ?? '0'}
-            onChange={(e) =>
-              handleInputChange(row.id, field, Number(e.target.value))
-            }
-            className="table-numeric-field w-[70px]"
-            min="0"
-            step="0.5"
-          />
+          <div className="flex items-center justify-center">
+            <span className="text-sm font-medium">
+              {formatHoursAndMinutes(Number(value ?? 0))}
+            </span>
+          </div>
         );
       }
 
       // Campos numéricos y texto
       return (
         <input
-          type={isMoneyField ? 'number' : 'text'}
+          type={isNumericField(field) ? 'number' : 'text'}
           value={value?.toString() ?? ''}
           onChange={(e) => {
-            const newValue = isMoneyField
+            const newValue = isNumericField(field)
               ? Number(e.target.value)
               : e.target.value;
             handleInputChange(row.id, field, newValue);
@@ -547,20 +607,11 @@ export default function TransactionTable({
 
     try {
       const date = new Date(dateStr);
-      const colombiaOptions = {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        timeZone: 'America/Bogota',
-        hourCycle: 'h23',
-      } as const;
-
-      setCurrentDate(
-        new Intl.DateTimeFormat('es-CO', colombiaOptions)
-          .format(date)
-          .toUpperCase()
+      const colombiaDate = new Date(
+        date.toLocaleString('en-US', { timeZone: 'America/Bogota' })
       );
+
+      setCurrentDate(formatCurrentDate(colombiaDate));
     } catch (error) {
       console.error('Error formatting date:', error);
     }

@@ -10,6 +10,7 @@ import {
 } from '~/server/actions/tableGeneral';
 
 import EmployeeHoursTable from './EmployeeHoursTable';
+import Loading from './Loading';
 import TransactionTable from './TransactionTable';
 
 import type { CleaningService, Property, Employee } from '~/types';
@@ -43,7 +44,7 @@ export default function ClientPage() {
   }, []);
 
   if (isLoading) {
-    return <div>Cargando...</div>;
+    return <Loading />;
   }
 
   return (

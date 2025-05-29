@@ -1,13 +1,13 @@
 export default function HeaderTitles() {
   const tableHeaders = [
-    'Fecha',
+    'Hora Inicial',
     'Propiedad',
     'Cliente',
     'Valor del Servicio',
     'Tiempo del Servicio',
     'Empleado',
     'Horas',
-    'Fecha Trabajo',
+    'Hora Final',
   ];
 
   return (
