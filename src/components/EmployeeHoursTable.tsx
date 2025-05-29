@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react';
 
+import { formatTotalHours } from '~/utils/formulas';
+
 import type { CleaningService, Property, Employee } from '~/types';
 
 interface EmployeeHoursTableProps {
@@ -51,6 +53,7 @@ export default function EmployeeHoursTable({
           <tr className="border-b text-gray-600">
             <th className="p-2">Empleado</th>
             <th className="p-2">Propiedad</th>
+            <th className="p-2">Cliente</th>
             <th className="p-2">Total Horas</th>
             <th className="p-2">Días Trabajados</th>
           </tr>
@@ -70,12 +73,13 @@ export default function EmployeeHoursTable({
                     ? `${employee.firstName} ${employee.lastName}`
                     : 'N/A'}
                 </td>
+                <td className="p-2">{property ? property.name : 'N/A'}</td>
                 <td className="p-2">
-                  {property
-                    ? `${property.name} (${property.clientName})`
-                    : 'N/A'}
+                  {property ? property.clientName : 'N/A'}
                 </td>
-                <td className="p-2 font-medium">{row.totalHours.toFixed(1)}</td>
+                <td className="p-2 font-medium">
+                  {formatTotalHours(row.totalHours)}
+                </td>
                 <td className="p-2">{row.daysWorked}</td>
               </tr>
             );
