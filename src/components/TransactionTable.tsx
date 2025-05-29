@@ -853,13 +853,15 @@ export default function TransactionTable({
               {paginatedData.map((row) => (
                 <tr key={row.id} className="border-b hover:bg-gray-50">
                   {isDeleteMode && (
-                    <td className="px-0.5 py-0.5 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={rowsToDelete.has(row.id)}
-                        onChange={() => handleDeleteSelect(row.id)}
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
+                    <td className="px-0.5 py-0.5 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={rowsToDelete.has(row.id)}
+                          onChange={() => handleDeleteSelect(row.id)}
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                      </div>
                     </td>
                   )}
                   <td className="table-cell whitespace-nowrap">
