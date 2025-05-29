@@ -1,9 +1,9 @@
 export const RATE_TYPES = {
-  HOURLY_USD: 'USD x HORA',
-  HOURLY_FL: 'FL x HORA',
-  DAILY_USD: 'USD x DIA',
-  DAILY_FL: 'FL x DIA',
-  PER_APT_FL: 'FL x APTO',
+  HOURLY_USD: 'USD x Hora',
+  HOURLY_FL: 'FL x Hora',
+  DAILY_USD: 'USD x Día',
+  DAILY_FL: 'FL x Día',
+  PER_APT_FL: 'FL x Apto',
 } as const;
 
 export type RateType = (typeof RATE_TYPES)[keyof typeof RATE_TYPES];

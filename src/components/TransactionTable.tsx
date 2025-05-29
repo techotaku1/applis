@@ -99,11 +99,13 @@ const EmployeeSelect = ({
   <select
     value={value}
     onChange={(e) => onChange(e.target.value)}
-    className="table-select-field w-full"
+    className="table-select-field w-full text-center"
   >
-    <option value="">Seleccionar empleado</option>
+    <option value="" className="text-center">
+      Seleccionar empleado
+    </option>
     {employees.map((employee: Employee) => (
-      <option key={employee.id} value={employee.id}>
+      <option key={employee.id} value={employee.id} className="text-center">
         {employee.firstName} {employee.lastName}
       </option>
     ))}

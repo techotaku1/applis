@@ -107,6 +107,10 @@
     margin: 0 auto;
   }
 
+  .table-select-field option {
+    text-align: center;
+  }
+
   .table-cell {
     @apply flex items-center justify-center border-r border-gray-400;
     min-height: 1.5rem;
