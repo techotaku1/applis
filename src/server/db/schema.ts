@@ -55,6 +55,7 @@ export const cleaningServices = pgTable('cleaning_services', {
     .references(() => employees.id)
     .notNull(),
   serviceDate: timestamp('service_date').notNull(),
+  workDate: timestamp('work_date').notNull(), // Nueva columna
   hoursWorked: decimal('hours_worked', { precision: 5, scale: 2 }).notNull(),
   isRefreshService: boolean('is_refresh_service').default(false).notNull(),
   totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),

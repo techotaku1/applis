@@ -1,26 +1,9 @@
-import TransactionTable from '~/components/TransactionTable';
-import { getServices, updateServices } from '~/server/actions/tableGeneral';
+import ClientPage from '~/components/ClientPage';
 
-import type { CleaningService } from '~/types';
+export default function HomePage() {
+  return <ClientPage />;
+}
 
-// Añadir configuración de no caché
+// Remove these as they don't work in Server Components
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-export default async function HomePage() {
-  const initialData = await getServices();
-
-  return (
-    <main className="container mx-auto h-screen p-4">
-      {' '}
-      {/* Reducido el padding */}
-      <h1 className="font-display mb-2 text-3xl font-bold tracking-tight text-black">
-        Registro de Servicios
-      </h1>
-      <TransactionTable
-        initialData={initialData}
-        onUpdateRecordAction={updateServices}
-      />
-    </main>
-  );
-}

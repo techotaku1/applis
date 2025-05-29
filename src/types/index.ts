@@ -45,6 +45,7 @@ export interface CleaningService {
   propertyId: string;
   employeeId: string;
   serviceDate: Date;
+  workDate: Date; // Nueva propiedad para fecha de trabajo
   hoursWorked: number;
   isRefreshService: boolean;
   totalAmount: number;

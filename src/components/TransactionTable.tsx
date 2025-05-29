@@ -33,16 +33,26 @@ interface TransactionTableProps {
   onUpdateRecordAction: (records: CleaningService[]) => Promise<SaveResult>;
 }
 
-function getCurrentDate(): string {
-  const today = new Date();
-  const formatter = new Intl.DateTimeFormat('es-CO', {
+function getCurrentColombiaDate(): Date {
+  const now = new Date();
+  const colombiaDate = new Date(
+    now.toLocaleString('en-US', { timeZone: 'America/Bogota' })
+  );
+  const offset = colombiaDate.getTimezoneOffset();
+  colombiaDate.setMinutes(colombiaDate.getMinutes() - offset);
+  return colombiaDate;
+}
+
+function formatCurrentDate(date: Date): string {
+  const options = {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     timeZone: 'America/Bogota',
-  });
-  return formatter.format(today).toUpperCase();
+  } as const;
+
+  return new Intl.DateTimeFormat('es-CO', options).format(date).toUpperCase();
 }
 
 interface PropertySelectProps {
@@ -107,7 +117,9 @@ export default function TransactionTable({
   const [data, setData] = useState<CleaningService[]>(initialData);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [currentDate, setCurrentDate] = useState(getCurrentDate());
+  const [currentDate, setCurrentDate] = useState(() =>
+    formatCurrentDate(getCurrentColombiaDate())
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
@@ -123,15 +135,12 @@ export default function TransactionTable({
 
   const addNewRow = async () => {
     try {
-      const now = new Date();
-      const colombiaDate = new Date(
-        now.toLocaleString('en-US', { timeZone: 'America/Bogota' })
-      );
+      const colombiaDate = getCurrentColombiaDate();
 
-      const [firstProperty, firstEmployee] = await Promise.all([
-        getProperties().then((props) => props[0]),
-        getEmployees().then((emps) => emps[0]),
-      ]);
+      const results = await Promise.all([getProperties(), getEmployees()]);
+
+      const firstProperty = results[0]?.[0];
+      const firstEmployee = results[1]?.[0];
 
       if (!firstProperty || !firstEmployee) {
         throw new Error('No hay propiedades o empleados disponibles');
@@ -142,6 +151,7 @@ export default function TransactionTable({
         propertyId: firstProperty.id,
         employeeId: firstEmployee.id,
         serviceDate: colombiaDate,
+        workDate: colombiaDate,
         hoursWorked: 0,
         isRefreshService: false,
         totalAmount: calculateInitialAmount(firstProperty),
@@ -155,13 +165,13 @@ export default function TransactionTable({
         setData((prevData) => [newRow, ...prevData]);
         await handleSaveOperation([newRow, ...data]);
       } else {
-        alert(result.error ?? 'Error al crear el servicio');
+        throw new Error(result.error ?? 'Error al crear el servicio');
       }
     } catch (error) {
-      console.error('Error creating new service:', error);
-      alert(
-        'Error al crear el servicio. Verifique que existan propiedades y empleados registrados.'
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
+      console.error('Error creating new service:', errorMessage);
+      alert(`Error al crear el servicio: ${errorMessage}`);
     }
   };
 
@@ -369,19 +379,45 @@ export default function TransactionTable({
         }
       };
 
-      // Manejar fecha
-      if (field === 'serviceDate') {
+      // Manejar fechas (tanto serviceDate como workDate)
+      if (field === 'serviceDate' || field === 'workDate') {
+        const dateValue = value instanceof Date ? value : new Date();
+        const isWorkDate = field === 'workDate';
+
+        if (isWorkDate) {
+          return (
+            <div className="flex items-center justify-center px-2">
+              <input
+                type="datetime-local"
+                value={dateValue.toISOString().slice(0, 16)}
+                onChange={(e) => {
+                  try {
+                    const newDate = new Date(e.target.value);
+                    const colombiaDate = new Date(
+                      newDate.toLocaleString('en-US', {
+                        timeZone: 'America/Bogota',
+                      })
+                    );
+                    handleInputChange(row.id, field, colombiaDate);
+                  } catch (error) {
+                    console.error('Error converting date:', error);
+                  }
+                }}
+                className="table-date-field flex cursor-pointer items-center justify-center rounded border px-0 py-0.5 text-center text-[10px]"
+              />
+            </div>
+          );
+        }
+
         return (
           <div className="relative flex w-full items-center justify-center">
             <input
               type="datetime-local"
-              value={
-                value instanceof Date ? value.toISOString().slice(0, 16) : ''
-              }
+              value={dateValue.toISOString().slice(0, 16)}
               onChange={(e) => {
                 try {
-                  const inputDate = new Date(e.target.value + ':00Z');
-                  handleInputChange(row.id, field, inputDate);
+                  const newDate = new Date(e.target.value);
+                  handleInputChange(row.id, field, newDate);
                 } catch (error) {
                   console.error('Error converting date:', error);
                 }
@@ -499,18 +535,25 @@ export default function TransactionTable({
     const dateStr = currentDateGroup[0];
     if (!dateStr) return;
 
-    const date = new Date(`${dateStr}T12:00:00-05:00`);
-    if (isNaN(date.getTime())) return;
+    try {
+      const date = new Date(dateStr);
+      const colombiaOptions = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'America/Bogota',
+        hourCycle: 'h23',
+      } as const;
 
-    const formatter = new Intl.DateTimeFormat('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'America/Bogota',
-    });
-
-    setCurrentDate(formatter.format(date).toUpperCase());
+      setCurrentDate(
+        new Intl.DateTimeFormat('es-CO', colombiaOptions)
+          .format(date)
+          .toUpperCase()
+      );
+    } catch (error) {
+      console.error('Error formatting date:', error);
+    }
   }, [currentDateGroup]);
 
   // Add pagination controls component
@@ -716,6 +759,9 @@ export default function TransactionTable({
                   </td>
                   <td className="table-cell whitespace-nowrap">
                     {renderInput(row, 'hoursWorked', 'number')}
+                  </td>
+                  <td className="table-cell whitespace-nowrap">
+                    {renderInput(row, 'workDate', 'date')}
                   </td>
                 </tr>
               ))}

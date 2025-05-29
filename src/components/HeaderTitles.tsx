@@ -7,6 +7,7 @@ export default function HeaderTitles() {
     'Tiempo del Servicio',
     'Empleado',
     'Horas',
+    'Fecha Trabajo',
   ];
 
   return (
