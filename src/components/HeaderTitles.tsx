@@ -3,11 +3,10 @@ export default function HeaderTitles() {
     'Fecha',
     'Propiedad',
     'Cliente',
+    'Valor del Servicio',
+    'Tiempo del Servicio',
     'Empleado',
     'Horas',
-    'Servicio Regular',
-    'Monto Total',
-    'Notas',
   ];
 
   return (

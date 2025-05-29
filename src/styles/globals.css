@@ -68,6 +68,7 @@
     appearance: textfield;
     -webkit-appearance: textfield;
     -moz-appearance: textfield;
+    width: 100%;
   }
 
   .placa-field {

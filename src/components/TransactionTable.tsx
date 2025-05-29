@@ -7,9 +7,15 @@ import {
   createService,
   deleteServices,
   getProperties,
+  getEmployees,
 } from '~/server/actions/tableGeneral';
-
-import type { CleaningService, SaveResult } from '~/types';
+import {
+  RATE_TYPES,
+  type CleaningService,
+  type SaveResult,
+  type Property,
+  type Employee,
+} from '~/types';
 
 import '~/styles/spinner.css';
 import HeaderTitles from './HeaderTitles';
@@ -39,6 +45,61 @@ function getCurrentDate(): string {
   return formatter.format(today).toUpperCase();
 }
 
+interface PropertySelectProps {
+  value: string;
+  onChange: (propertyId: string, property: Property) => void;
+  properties: Property[];
+}
+
+const PropertySelect = ({
+  value,
+  onChange,
+  properties,
+}: PropertySelectProps) => (
+  <select
+    value={value}
+    onChange={(e) => {
+      const property = properties.find((p) => p.id === e.target.value);
+      if (property) {
+        onChange(e.target.value, property);
+      }
+    }}
+    className="table-select-field w-full"
+  >
+    <option value="">Seleccionar propiedad</option>
+    {properties.map((property) => (
+      <option key={property.id} value={property.id}>
+        {property.name} - {property.clientName}
+      </option>
+    ))}
+  </select>
+);
+
+interface EmployeeSelectProps {
+  value: string;
+  onChange: (employeeId: string) => void;
+  employees: Employee[];
+}
+
+const EmployeeSelect = ({
+  value,
+  onChange,
+  employees,
+}: EmployeeSelectProps) => (
+  <select
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    className="table-select-field w-full"
+  >
+    <option value="">Seleccionar empleado</option>
+    {employees.map((employee: Employee) => (
+      <option key={employee.id} value={employee.id}>
+        {employee.firstName} {employee.lastName}
+      </option>
+    ))}
+  </select>
+);
+
 export default function TransactionTable({
   initialData,
   onUpdateRecordAction,
@@ -51,6 +112,14 @@ export default function TransactionTable({
   const [zoom, setZoom] = useState(1);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [rowsToDelete, setRowsToDelete] = useState<Set<string>>(new Set());
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+
+  // Cargar propiedades y empleados al montar el componente
+  useEffect(() => {
+    getProperties().then(setProperties).catch(console.error);
+    getEmployees().then(setEmployees).catch(console.error);
+  }, []);
 
   const addNewRow = async () => {
     try {
@@ -59,27 +128,23 @@ export default function TransactionTable({
         now.toLocaleString('en-US', { timeZone: 'America/Bogota' })
       );
 
-      const propertiesResult = await getProperties();
-      if (!propertiesResult || propertiesResult.length === 0) {
-        alert('Debe crear al menos una propiedad antes de agregar servicios.');
-        return;
+      const [firstProperty, firstEmployee] = await Promise.all([
+        getProperties().then((props) => props[0]),
+        getEmployees().then((emps) => emps[0]),
+      ]);
+
+      if (!firstProperty || !firstEmployee) {
+        throw new Error('No hay propiedades o empleados disponibles');
       }
 
-      const firstProperty = propertiesResult[0];
-      if (!firstProperty) {
-        alert('No se encontraron propiedades disponibles.');
-        return;
-      }
-
-      const newRowId = crypto.randomUUID();
       const newRow: CleaningService = {
-        id: newRowId,
+        id: crypto.randomUUID(),
         propertyId: firstProperty.id,
-        employeeId: '',
+        employeeId: firstEmployee.id,
         serviceDate: colombiaDate,
         hoursWorked: 0,
         isRefreshService: false,
-        totalAmount: 0,
+        totalAmount: calculateInitialAmount(firstProperty),
         notes: null,
         createdAt: colombiaDate,
         updatedAt: colombiaDate,
@@ -95,10 +160,61 @@ export default function TransactionTable({
     } catch (error) {
       console.error('Error creating new service:', error);
       alert(
-        'Error al crear el servicio. Verifique que existan propiedades registradas.'
+        'Error al crear el servicio. Verifique que existan propiedades y empleados registrados.'
       );
     }
   };
+
+  const calculateInitialAmount = (property: Property) => {
+    return property.regularRate;
+  };
+
+  const calculateTotalAmount = useCallback(
+    (property: Property, isRefresh: boolean, hours: number) => {
+      if (isRefresh) {
+        return property.refreshRate;
+      }
+
+      switch (property.rateType) {
+        case RATE_TYPES.HOURLY_USD:
+        case RATE_TYPES.HOURLY_FL:
+          return property.regularRate * hours;
+        case RATE_TYPES.DAILY_USD:
+        case RATE_TYPES.DAILY_FL:
+        case RATE_TYPES.PER_APT_FL:
+          return property.regularRate;
+        default:
+          return 0;
+      }
+    },
+    []
+  );
+
+  const handlePropertyChange = useCallback(
+    (serviceId: string, propertyId: string, property: Property) => {
+      setData((prevData) =>
+        prevData.map((service) => {
+          if (service.id === serviceId) {
+            const newService = {
+              ...service,
+              propertyId,
+            };
+            const totalAmount = calculateTotalAmount(
+              property,
+              newService.isRefreshService,
+              newService.hoursWorked
+            );
+            return {
+              ...newService,
+              totalAmount,
+            };
+          }
+          return service;
+        })
+      );
+    },
+    [calculateTotalAmount] // Add calculateTotalAmount as dependency
+  );
 
   const handleSaveSuccess = useCallback(() => {
     setUnsavedChanges(false);
@@ -216,6 +332,14 @@ export default function TransactionTable({
     }
   };
 
+  const getPropertyClientName = useCallback(
+    (propertyId: string) => {
+      const property = properties.find((p) => p.id === propertyId);
+      return property?.clientName ?? '';
+    },
+    [properties]
+  );
+
   const renderInput = useCallback(
     (
       row: CleaningService,
@@ -268,14 +392,74 @@ export default function TransactionTable({
         );
       }
 
-      // Manejar checkbox
+      // Modificar el renderizado del valor del servicio y tipo de pago
+      if (field === 'totalAmount') {
+        const property = properties.find((p) => p.id === row.propertyId);
+        if (!property) return null;
+
+        return (
+          <div className="flex flex-col items-center justify-center px-2">
+            <span className="font-medium">{property.regularRate}</span>
+            <span className="text-xs text-gray-600">{property.rateType}</span>
+          </div>
+        );
+      }
+
+      // Modificar el renderizado del tiempo de servicio
       if (field === 'isRefreshService') {
+        const property = properties.find((p) => p.id === row.propertyId);
+        if (!property) return null;
+
+        // Format the standardHours to always show "HORAS"
+        const formattedHours = property.standardHours.includes('HORAS')
+          ? property.standardHours
+          : `${property.standardHours} HORAS`;
+
+        return (
+          <div className="flex items-center justify-center px-2">
+            <span className="text-sm font-medium">{formattedHours}</span>
+          </div>
+        );
+      }
+
+      // Selección de propiedad
+      if (field === 'propertyId') {
+        return (
+          <PropertySelect
+            value={row.propertyId}
+            onChange={(propertyId, property) =>
+              handlePropertyChange(row.id, propertyId, property)
+            }
+            properties={properties}
+          />
+        );
+      }
+
+      // Select de empleados
+      if (field === 'employeeId') {
+        return (
+          <EmployeeSelect
+            value={row.employeeId}
+            onChange={(employeeId) =>
+              handleInputChange(row.id, 'employeeId', employeeId)
+            }
+            employees={employees}
+          />
+        );
+      }
+
+      // Input numérico para horas
+      if (field === 'hoursWorked') {
         return (
           <input
-            type="checkbox"
-            checked={value as boolean}
-            onChange={(e) => handleInputChange(row.id, field, e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300"
+            type="number"
+            value={value?.toString() ?? '0'}
+            onChange={(e) =>
+              handleInputChange(row.id, field, Number(e.target.value))
+            }
+            className="table-numeric-field w-[70px]"
+            min="0"
+            step="0.5"
           />
         );
       }
@@ -295,7 +479,7 @@ export default function TransactionTable({
         />
       );
     },
-    [handleInputChange]
+    [handleInputChange, properties, employees, handlePropertyChange]
   );
 
   // Memoize the current date group and related data
@@ -519,19 +703,19 @@ export default function TransactionTable({
                     {renderInput(row, 'propertyId')}
                   </td>
                   <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'employeeId')}
+                    {getPropertyClientName(row.propertyId)}
                   </td>
                   <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'hoursWorked', 'number')}
+                    {renderInput(row, 'totalAmount', 'number')}
                   </td>
                   <td className="table-checkbox-cell whitespace-nowrap">
                     {renderInput(row, 'isRefreshService', 'checkbox')}
                   </td>
                   <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'totalAmount', 'number')}
+                    {renderInput(row, 'employeeId')}
                   </td>
                   <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'notes')}
+                    {renderInput(row, 'hoursWorked', 'number')}
                   </td>
                 </tr>
               ))}

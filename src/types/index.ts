@@ -1,22 +1,26 @@
-export enum RateType {
-  HOURLY_USD = 'HOURLY_USD',
-  HOURLY_FL = 'HOURLY_FL',
-  DAILY_USD = 'DAILY_USD',
-  DAILY_FL = 'DAILY_FL',
-  PER_APT_FL = 'PER_APT_FL',
-}
+export const RATE_TYPES = {
+  HOURLY_USD: 'USD x HORA',
+  HOURLY_FL: 'FL x HORA',
+  DAILY_USD: 'USD x DIA',
+  DAILY_FL: 'FL x DIA',
+  PER_APT_FL: 'FL x APTO',
+} as const;
 
-export enum TaxStatus {
-  WITH_TAX = 'WITH_TAX',
-  WITHOUT_TAX = 'WITHOUT_TAX',
-}
+export type RateType = (typeof RATE_TYPES)[keyof typeof RATE_TYPES];
+
+export const TAX_STATUS = {
+  WITH_TAX: 'WITH_TAX',
+  WITHOUT_TAX: 'WITHOUT_TAX',
+} as const;
+
+export type TaxStatus = (typeof TAX_STATUS)[keyof typeof TAX_STATUS];
 
 export interface Property {
   id: string;
   name: string;
   clientName: string;
   regularRate: number;
-  rateType: RateType;
+  rateType: string; // Now just a string instead of enum
   refreshRate: number;
   standardHours: string;
   taxStatus: TaxStatus;

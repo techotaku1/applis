@@ -1,4 +1,4 @@
-import { type CleaningService, type Property, RateType } from '~/types';
+import { RATE_TYPES, type CleaningService, type Property } from '~/types';
 
 export function calculateServiceAmount(
   service: CleaningService,
@@ -12,12 +12,12 @@ export function calculateServiceAmount(
   }
 
   switch (property.rateType) {
-    case RateType.HOURLY_USD:
-    case RateType.HOURLY_FL:
+    case RATE_TYPES.HOURLY_USD:
+    case RATE_TYPES.HOURLY_FL:
       return baseRate * hours;
-    case RateType.DAILY_USD:
-    case RateType.DAILY_FL:
-    case RateType.PER_APT_FL:
+    case RATE_TYPES.DAILY_USD:
+    case RATE_TYPES.DAILY_FL:
+    case RATE_TYPES.PER_APT_FL:
       return baseRate;
     default:
       return 0;
