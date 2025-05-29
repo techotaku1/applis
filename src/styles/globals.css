@@ -95,7 +95,7 @@
   }
 
   .table-select-field {
-    @apply flex items-center justify-center text-center;
+    @apply flex items-center justify-center;
     font-family: var(--font-table-text);
     font-optical-sizing: auto;
     font-weight: 500;
@@ -105,10 +105,14 @@
     padding: 0.15rem 0.5rem;
     color: black;
     margin: 0 auto;
+    text-align: center !important;
+    text-align-last: center !important;
   }
 
   .table-select-field option {
-    text-align: center;
+    text-align: center !important;
+    text-align-last: center !important;
+    -moz-text-align-last: center !important;
   }
 
   .table-cell {

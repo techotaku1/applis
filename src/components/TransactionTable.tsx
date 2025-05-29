@@ -135,6 +135,11 @@ export default function TransactionTable({
     getEmployees().then(setEmployees).catch(console.error);
   }, []);
 
+  // Actualizar el efecto para mantener los datos sincronizados con initialData
+  useEffect(() => {
+    setData(initialData);
+  }, [initialData]);
+
   const addNewRow = async () => {
     try {
       const colombiaDate = getCurrentColombiaDate();
@@ -352,6 +357,7 @@ export default function TransactionTable({
     [properties]
   );
 
+  // Modificar la función renderInput para mostrar el valor del servicio correctamente
   const renderInput = useCallback(
     (
       row: CleaningService,
@@ -435,10 +441,12 @@ export default function TransactionTable({
         const property = properties.find((p) => p.id === row.propertyId);
         if (!property) return null;
 
+        // Formatear el tipo de tarifa
+        const formattedRate = `${property.regularRate} ${property.rateType}`;
+
         return (
           <div className="flex flex-col items-center justify-center px-2">
-            <span className="font-medium">{property.regularRate}</span>
-            <span className="text-xs text-gray-600">{property.rateType}</span>
+            <span className="font-medium">{formattedRate}</span>
           </div>
         );
       }

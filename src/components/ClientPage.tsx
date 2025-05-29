@@ -18,33 +18,39 @@ type TableView = 'services' | 'hours';
 
 export default function ClientPage() {
   const [currentView, setCurrentView] = useState<TableView>('services');
-  const [data, setData] = useState({
-    services: [] as CleaningService[],
-    properties: [] as Property[],
-    employees: [] as Employee[],
-  });
+  const [services, setServices] = useState<CleaningService[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [services, properties, employees] = await Promise.all([
-          getServices(),
-          getProperties(),
-          getEmployees(),
-        ]);
-        setData({ services, properties, employees });
+        const [servicesData, propertiesData, employeesData] = await Promise.all(
+          [getServices(), getProperties(), getEmployees()]
+        );
+        setServices(servicesData);
+        setProperties(propertiesData);
+        setEmployees(employeesData);
       } catch (error) {
         console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
+
     void loadData();
   }, []);
+
+  if (isLoading) {
+    return <div>Cargando...</div>;
+  }
 
   return (
     <main className="container mx-auto h-screen p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="font-display text-3xl font-bold tracking-tight text-black">
-          Control de Servicios
+          Registro de Servicios
         </h1>
         <div className="flex gap-4">
           <button
@@ -72,14 +78,14 @@ export default function ClientPage() {
 
       {currentView === 'services' ? (
         <TransactionTable
-          initialData={data.services}
+          initialData={services}
           onUpdateRecordAction={updateServices}
         />
       ) : (
         <EmployeeHoursTable
-          services={data.services}
-          properties={data.properties}
-          employees={data.employees}
+          services={services}
+          properties={properties}
+          employees={employees}
         />
       )}
     </main>
