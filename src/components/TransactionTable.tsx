@@ -280,15 +280,17 @@ export default function TransactionTable({
     }
   };
 
+  // Update the handleSaveSuccess callback
   const handleSaveSuccess = useCallback(() => {
     setUnsavedChanges(false);
     setIsSaving(false);
   }, []);
 
+  // Update debouncedSave initialization with shorter delay
   const debouncedSave = useDebouncedSave(
     onUpdateRecordAction,
     handleSaveSuccess,
-    2000
+    1000 // Reduced from 2000 to 1000ms for faster response
   );
 
   const handlePropertyChange = useCallback(
@@ -373,7 +375,7 @@ export default function TransactionTable({
     );
   }, [data]);
 
-  // Actualizar handleInputChange para los nuevos campos
+  // Update handleInputChange to immediately trigger save
   const handleInputChange: HandleInputChange = useCallback(
     (id, field, value) => {
       setData((prevData) => {
@@ -413,7 +415,7 @@ export default function TransactionTable({
           return row;
         });
 
-        // Always trigger auto-save for any change
+        // Trigger save immediately after state update
         setUnsavedChanges(true);
         void debouncedSave(newData);
         return newData;

@@ -1,48 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-import {
-  getServices,
-  updateServices,
-  getProperties,
-  getEmployees,
-} from '~/server/actions/tableGeneral';
+import { useServices, useProperties, useEmployees } from '~/hooks/useAppData';
+import { updateServices } from '~/server/actions/tableGeneral';
 
 import EmployeeHoursTable from './EmployeeHoursTable';
+import InvoiceModal from './InvoiceModal';
 import Loading from './Loading';
 import PropertyHoursTable from './PropertyHoursTable';
 import TransactionTable from './TransactionTable';
-
-import type { CleaningService, Property, Employee } from '~/types';
 
 type TableView = 'services' | 'hours' | 'property-hours';
 
 export default function ClientPage() {
   const [currentView, setCurrentView] = useState<TableView>('services');
-  const [services, setServices] = useState<CleaningService[]>([]);
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [servicesData, propertiesData, employeesData] = await Promise.all(
-          [getServices(), getProperties(), getEmployees()]
-        );
-        setServices(servicesData);
-        setProperties(propertiesData);
-        setEmployees(employeesData);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const {
+    data: services = [],
+    isLoading: servicesLoading,
+    mutate: mutateServices,
+  } = useServices();
+  const { data: properties = [], isLoading: propertiesLoading } =
+    useProperties();
+  const { data: employees = [], isLoading: employeesLoading } = useEmployees();
 
-    void loadData();
-  }, []);
+  const isLoading = servicesLoading || propertiesLoading || employeesLoading;
 
   if (isLoading) {
     return <Loading />;
@@ -85,13 +69,25 @@ export default function ClientPage() {
           >
             Resumen por Propiedad
           </button>
+          <button
+            onClick={() => setShowInvoiceModal(true)}
+            className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+          >
+            Generar Factura
+          </button>
         </div>
       </div>
 
       {currentView === 'services' ? (
         <TransactionTable
           initialData={services}
-          onUpdateRecordAction={updateServices}
+          onUpdateRecordAction={async (records) => {
+            const result = await updateServices(records);
+            if (result.success && mutateServices) {
+              await mutateServices();
+            }
+            return result;
+          }}
         />
       ) : currentView === 'hours' ? (
         <EmployeeHoursTable
@@ -102,6 +98,13 @@ export default function ClientPage() {
       ) : (
         <PropertyHoursTable services={services} properties={properties} />
       )}
+
+      <InvoiceModal
+        isOpen={showInvoiceModal}
+        onCloseAction={() => setShowInvoiceModal(false)}
+        services={services}
+        properties={properties}
+      />
     </main>
   );
 }
