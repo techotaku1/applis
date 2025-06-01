@@ -18,7 +18,6 @@ import {
 } from '~/types';
 import { formatRateType } from '~/utils/formatters';
 
-import '~/styles/spinner.css';
 import '~/styles/buttonLoader.css';
 import '~/styles/deleteButton.css';
 import HeaderTitles from './HeaderTitles';
@@ -38,19 +37,11 @@ interface TransactionTableProps {
 
 function getCurrentColombiaDate(): Date {
   const now = new Date();
-  const colombiaOptions = {
-    timeZone: 'America/Bogota',
-    year: 'numeric' as const,
-    month: '2-digit' as const,
-    day: '2-digit' as const,
-    hour: '2-digit' as const,
-    minute: '2-digit' as const,
-    second: '2-digit' as const,
-    hour12: false,
-  };
-
-  const colombiaDateStr = now.toLocaleString('en-US', colombiaOptions);
-  return new Date(colombiaDateStr);
+  // Convertir a zona horaria de Colombia
+  const colombiaDate = new Date(
+    now.toLocaleString('en-US', { timeZone: 'America/Bogota' })
+  );
+  return colombiaDate;
 }
 
 // Update the hours calculation function to preserve minutes
@@ -70,22 +61,29 @@ function formatHoursAndMinutes(totalHours: number): string {
   return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
 }
 
+// Modificar la función formatCurrentDate para usar la misma lógica que getCurrentColombiaDate
 function formatCurrentDate(date: Date): string {
-  const colombiaDate = new Date(
-    date.toLocaleString('en-US', { timeZone: 'America/Bogota' })
-  );
+  try {
+    // Ajustar la fecha a Colombia sin usar toLocaleString
+    const utcDate = new Date(date.getTime());
+    // Ajustar a UTC-5 (Colombia)
+    const colombiaOffset = 5 * 60 * 60 * 1000; // 5 horas en milisegundos
+    const colombiaDate = new Date(utcDate.getTime() + colombiaOffset);
 
-  const options = {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'America/Bogota',
-  } as const;
+    const options = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    } as const;
 
-  return new Intl.DateTimeFormat('es-CO', options)
-    .format(colombiaDate)
-    .toUpperCase();
+    return new Intl.DateTimeFormat('es-CO', options)
+      .format(colombiaDate)
+      .toUpperCase();
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return new Date().toLocaleDateString('es-CO');
+  }
 }
 
 interface PropertySelectProps {
@@ -205,9 +203,10 @@ export default function TransactionTable({
   const [data, setData] = useState<CleaningService[]>(initialData);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [currentDate, setCurrentDate] = useState(() =>
-    formatCurrentDate(getCurrentColombiaDate())
-  );
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date();
+    return formatCurrentDate(now);
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
@@ -281,10 +280,21 @@ export default function TransactionTable({
     }
   };
 
+  const handleSaveSuccess = useCallback(() => {
+    setUnsavedChanges(false);
+    setIsSaving(false);
+  }, []);
+
+  const debouncedSave = useDebouncedSave(
+    onUpdateRecordAction,
+    handleSaveSuccess,
+    2000
+  );
+
   const handlePropertyChange = useCallback(
     (serviceId: string, propertyId: string, property: Property) => {
-      setData((prevData) =>
-        prevData.map((service) => {
+      setData((prevData) => {
+        const newData = prevData.map((service) => {
           if (service.id === serviceId) {
             const newService = {
               ...service,
@@ -301,37 +311,32 @@ export default function TransactionTable({
             };
           }
           return service;
-        })
-      );
+        });
+
+        setUnsavedChanges(true);
+        void debouncedSave(newData);
+        return newData;
+      });
     },
-    [] // Removed calculateTotalAmount dependency
-  );
-
-  const handleSaveSuccess = useCallback(() => {
-    setUnsavedChanges(false);
-    setIsSaving(false);
-  }, []);
-
-  const debouncedSave = useDebouncedSave(
-    onUpdateRecordAction,
-    handleSaveSuccess,
-    2000
+    [debouncedSave]
   );
 
   // Actualizar la función para manejar CleaningService[]
   const handleSaveOperation = useCallback(
     async (records: CleaningService[]): Promise<SaveResult> => {
+      // Don't show spinner for auto-save operations
+      const isAutoSave = !unsavedChanges;
       try {
-        setIsSaving(true);
+        if (!isAutoSave) setIsSaving(true);
         return await onUpdateRecordAction(records);
       } catch (error) {
         console.error('Error saving changes:', error);
         return { success: false, error: 'Failed to save changes' };
       } finally {
-        setIsSaving(false);
+        if (!isAutoSave) setIsSaving(false);
       }
     },
-    [onUpdateRecordAction]
+    [onUpdateRecordAction, unsavedChanges]
   );
 
   // Actualizar groupedByDate para usar serviceDate en lugar de fecha
@@ -391,11 +396,24 @@ export default function TransactionTable({
               updatedRow[field] = value as never;
             }
 
+            // For property changes, update totalAmount
+            if (field === 'propertyId') {
+              const property = properties.find((p) => p.id === value);
+              if (property) {
+                updatedRow.totalAmount = calculateTotalAmount(
+                  property,
+                  updatedRow.isRefreshService,
+                  updatedRow.hoursWorked
+                );
+              }
+            }
+
             return updatedRow;
           }
           return row;
         });
 
+        // Always trigger auto-save for any change
         setUnsavedChanges(true);
         void debouncedSave(newData);
         return newData;
@@ -412,7 +430,7 @@ export default function TransactionTable({
         }
       }
     },
-    [debouncedSave, groupedByDate]
+    [debouncedSave, groupedByDate, properties]
   );
 
   const handleSaveChanges = async () => {
@@ -606,20 +624,21 @@ export default function TransactionTable({
     };
   }, [groupedByDate, currentPage]);
 
-  // Update current date when page changes with safe date handling
+  // Modificar el useEffect que maneja la fecha del grupo
   useEffect(() => {
     const dateStr = currentDateGroup[0];
     if (!dateStr) return;
 
     try {
+      // Convertir la fecha usando el mismo ajuste de zona horaria
       const date = new Date(dateStr);
-      const colombiaDate = new Date(
-        date.toLocaleString('en-US', { timeZone: 'America/Bogota' })
-      );
+      const utcDate = new Date(date.getTime());
+      const colombiaOffset = 5 * 60 * 60 * 1000;
+      const colombiaDate = new Date(utcDate.getTime() + colombiaOffset);
 
       setCurrentDate(formatCurrentDate(colombiaDate));
     } catch (error) {
-      console.error('Error formatting date:', error);
+      console.error('Error handling date group:', error);
     }
   }, [currentDateGroup]);
 
@@ -789,7 +808,8 @@ export default function TransactionTable({
                   ? 'Guardar'
                   : 'Guardado'}
             </button>
-            {isSaving && (
+            {/* Solo mostrar el spinner para guardado manual */}
+            {isSaving && !isAddingRecord && (
               <div className="dot-spinner">
                 <div className="dot-spinner__dot" />
                 <div className="dot-spinner__dot" />
@@ -822,7 +842,7 @@ export default function TransactionTable({
             </button>
           </div>
         </div>
-        <time className="font-display text-2xl font-bold text-black">
+        <time className="font-display text-3xl font-extrabold text-black">
           {currentDate}
         </time>
       </div>

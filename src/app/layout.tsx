@@ -22,7 +22,7 @@ const lexend = Lexend({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-lexend',
-  weight: ['500'], // Cambiado a 500 para mantener consistencia
+  weight: ['400', '500', '600', '700', '800', '900'],
 });
 
 export default function RootLayout({
