@@ -131,7 +131,7 @@ const EmployeeSelect = ({
 }: EmployeeSelectProps) => (
   <div className="relative w-full">
     <select
-      value={value}
+      value={value || ''} // Add default empty value
       onChange={(e) => onChange(e.target.value)}
       className="table-select-field w-full"
     >
@@ -229,12 +229,10 @@ export default function TransactionTable({
 
   const addNewRow = async () => {
     try {
-      // Use current Colombia time for both dates
       const colombiaDate = getCurrentColombiaDate();
-
       const results = await Promise.all([getProperties(), getEmployees()]);
       const firstProperty = results[0]?.[0];
-      const firstEmployee = results[1]?.[0];
+      const firstEmployee = results[1]?.[0]; // We need this for the database constraint
 
       if (!firstProperty || !firstEmployee) {
         throw new Error('No hay propiedades o empleados disponibles');
@@ -243,7 +241,7 @@ export default function TransactionTable({
       const newRow: CleaningService = {
         id: crypto.randomUUID(),
         propertyId: firstProperty.id,
-        employeeId: firstEmployee.id,
+        employeeId: firstEmployee.id, // Use first employee ID for database constraint
         serviceDate: colombiaDate,
         workDate: colombiaDate,
         hoursWorked: 0,
@@ -256,7 +254,12 @@ export default function TransactionTable({
 
       const result = await createService(newRow);
       if (result.success) {
-        setData((prevData) => [newRow, ...prevData]);
+        // After successful creation, set empty employeeId for UI
+        const uiRow = {
+          ...newRow,
+          employeeId: '', // Empty for UI to show "Seleccionar empleado"
+        };
+        setData((prevData) => [uiRow, ...prevData]);
         await handleSaveOperation([newRow, ...data]);
 
         // Update current page to today's date

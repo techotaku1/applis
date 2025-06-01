@@ -11,11 +11,12 @@ import {
 
 import EmployeeHoursTable from './EmployeeHoursTable';
 import Loading from './Loading';
+import PropertyHoursTable from './PropertyHoursTable';
 import TransactionTable from './TransactionTable';
 
 import type { CleaningService, Property, Employee } from '~/types';
 
-type TableView = 'services' | 'hours';
+type TableView = 'services' | 'hours' | 'property-hours';
 
 export default function ClientPage() {
   const [currentView, setCurrentView] = useState<TableView>('services');
@@ -72,7 +73,17 @@ export default function ClientPage() {
                 : 'bg-gray-200 text-gray-700'
             }`}
           >
-            Resumen de Horas
+            Resumen por Empleado
+          </button>
+          <button
+            onClick={() => setCurrentView('property-hours')}
+            className={`rounded px-4 py-2 ${
+              currentView === 'property-hours'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            Resumen por Propiedad
           </button>
         </div>
       </div>
@@ -82,12 +93,14 @@ export default function ClientPage() {
           initialData={services}
           onUpdateRecordAction={updateServices}
         />
-      ) : (
+      ) : currentView === 'hours' ? (
         <EmployeeHoursTable
           services={services}
           properties={properties}
           employees={employees}
         />
+      ) : (
+        <PropertyHoursTable services={services} properties={properties} />
       )}
     </main>
   );
