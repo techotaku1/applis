@@ -706,7 +706,7 @@ export default function TransactionTable({
           <button
             onClick={handleAddRecord}
             disabled={isAddingRecord}
-            className="group relative flex h-10 w-36 cursor-pointer items-center overflow-hidden rounded-lg border border-green-500 bg-green-500 hover:bg-green-500 active:border-green-500 active:bg-green-500"
+            className="group relative flex h-10 w-36 cursor-pointer items-center overflow-hidden rounded-lg border border-green-500 bg-green-500 hover:bg-green-500 active:border-green-500 active:bg-green-500 disabled:opacity-50"
           >
             <span
               className={`ml-8 transform font-semibold text-white transition-all duration-300 ${
@@ -726,7 +726,7 @@ export default function TransactionTable({
                 <div className="loader" />
               ) : (
                 <svg
-                  className="w-8 text-white active:scale-75"
+                  className="w-8 text-white group-active:scale-[0.8]"
                   fill="none"
                   height="24"
                   stroke="currentColor"
