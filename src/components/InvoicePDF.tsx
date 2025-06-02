@@ -9,6 +9,7 @@ import {
   Image,
 } from '@react-pdf/renderer';
 
+import { getCurrentColombiaDate, formatColombiaDateTime } from '~/utils/dates';
 import { formatTotalHours } from '~/utils/formulas';
 
 import type { CleaningService, Property } from '~/types';
@@ -50,7 +51,6 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 10,
     marginBottom: 4,
-    marginLeft: 0, // Reset margin for date
   },
   invoiceNumberSmall: {
     fontSize: 12,
@@ -169,16 +169,6 @@ export function InvoicePDF({
   const tax = withTax ? totalAmount * 0.07 : 0;
   const total = totalAmount + tax;
 
-  const formatDate = (date: Date) => {
-    return date
-      .toLocaleDateString('en-US', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
-      .replace(/\//g, '-');
-  };
-
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -186,7 +176,9 @@ export function InvoicePDF({
           <View style={styles.headerLeft}>
             {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image style={styles.logo} src="/logo.jpg" />
-            <Text style={styles.date}>{formatDate(new Date())}</Text>
+            <Text style={styles.date}>
+              {formatColombiaDateTime(getCurrentColombiaDate())}
+            </Text>
           </View>
           <View style={styles.headerRight}>
             <Text style={styles.title}>INVOICE</Text>
@@ -202,7 +194,8 @@ export function InvoicePDF({
             {property.clientName.toUpperCase()} - {property.name}
           </Text>
           <Text style={styles.dateRange}>
-            Period: {formatDate(startDate)} to {formatDate(endDate)}
+            Period: {formatColombiaDateTime(startDate)} to{' '}
+            {formatColombiaDateTime(endDate)}
           </Text>
         </View>
 

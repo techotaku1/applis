@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 import { PDFDownloadLink } from '@react-pdf/renderer';
 
@@ -104,6 +104,38 @@ export default function InvoiceModal({
     setShowTaxModal(false);
     setShowDownload(true);
   };
+
+  const PDFDocument = useMemo(() => {
+    if (!totals) {
+      return (
+        <InvoicePDF
+          services={[]}
+          property={{} as Property}
+          startDate={new Date()}
+          endDate={new Date()}
+          withTax={false}
+        />
+      );
+    }
+
+    // Create exact Date objects from the input strings
+    const exactStartDate = new Date(startDate);
+    const exactEndDate = new Date(endDate);
+
+    // Set to start/end of day to preserve the exact dates
+    exactStartDate.setUTCHours(0, 0, 0, 0);
+    exactEndDate.setUTCHours(23, 59, 59, 999);
+
+    return (
+      <InvoicePDF
+        services={totals.services}
+        property={totals.property}
+        startDate={exactStartDate}
+        endDate={exactEndDate}
+        withTax={withTax}
+      />
+    );
+  }, [totals, startDate, endDate, withTax]);
 
   if (!isOpen) return null;
 
@@ -226,17 +258,9 @@ export default function InvoiceModal({
               </div>
 
               <div className="mt-4 flex justify-end gap-4">
-                {showDownload ? (
+                {showDownload && totals && (
                   <PDFDownloadLink
-                    document={
-                      <InvoicePDF
-                        services={totals.services}
-                        property={totals.property}
-                        startDate={new Date(startDate)}
-                        endDate={new Date(endDate)}
-                        withTax={withTax}
-                      />
-                    }
+                    document={PDFDocument}
                     fileName={`invoice-${totals.property.name}-${startDate}.pdf`}
                     className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
                   >
@@ -244,7 +268,8 @@ export default function InvoiceModal({
                       loading ? 'Generando...' : 'Descargar Factura'
                     }
                   </PDFDownloadLink>
-                ) : (
+                )}
+                {!showDownload && (
                   <button
                     onClick={() => setShowTaxModal(true)}
                     className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
