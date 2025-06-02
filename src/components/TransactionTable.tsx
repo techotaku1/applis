@@ -878,7 +878,7 @@ export default function TransactionTable({
               {paginatedData.map((row) => (
                 <tr key={row.id} className="border-b hover:bg-gray-50">
                   {isDeleteMode && (
-                    <td className="px-0.5 py-0.5 text-center whitespace-nowrap">
+                    <td className=" border-r px-0.5 py-0.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center">
                         <input
                           type="checkbox"

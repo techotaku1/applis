@@ -2,31 +2,14 @@
 
 import { useState } from 'react';
 
-import { type Property, type CleaningService } from '~/types';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+
 import { formatRateType } from '~/utils/formatters';
 
-import SelectProperty from './SelectProperty';
+import { InvoicePDF } from './InvoicePDF';
+import TaxSelectionModal from './TaxSelectionModal';
 
-function formatHoursAndMinutes(hours: number): string {
-  const wholeHours = Math.floor(hours);
-  const minutes = Math.round((hours - wholeHours) * 60);
-  return `${wholeHours}h ${minutes.toString().padStart(2, '0')}m`;
-}
-
-function calculateExactAmount(hours: number, rate: number): number {
-  // Convertir las horas decimales a horas y minutos exactos
-  const wholeHours = Math.floor(hours);
-  const minutes = (hours - wholeHours) * 60;
-
-  // Calcular el monto por las horas completas
-  const hourlyAmount = wholeHours * rate;
-
-  // Calcular el monto por los minutos (regla de tres)
-  const minuteRate = rate / 60; // Tarifa por minuto
-  const minuteAmount = minutes * minuteRate;
-
-  return hourlyAmount + minuteAmount;
-}
+import type { CleaningService, Property } from '~/types';
 
 interface InvoiceModalProps {
   isOpen: boolean;
@@ -44,6 +27,9 @@ export default function InvoiceModal({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
+  const [showTaxModal, setShowTaxModal] = useState(false);
+  const [withTax, setWithTax] = useState(false);
+  const [showDownload, setShowDownload] = useState(false);
 
   const calculateTotals = () => {
     if (!selectedPropertyId || !startDate || !endDate) return null;
@@ -113,125 +99,201 @@ export default function InvoiceModal({
 
   const totals = calculateTotals();
 
+  const handleTaxConfirm = (includeTax: boolean) => {
+    setWithTax(includeTax);
+    setShowTaxModal(false);
+    setShowDownload(true);
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
-      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-bold">Generar Factura</h2>
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
+          <h2 className="mb-4 text-xl font-bold">Generar Factura</h2>
 
-        <div className="mb-4 grid grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium">Fecha Inicio</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="mt-1 w-full rounded border p-2"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">Fecha Fin</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="mt-1 w-full rounded border p-2"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">Propiedad</label>
-            <SelectProperty
-              value={selectedPropertyId}
-              onChangeAction={setSelectedPropertyId}
-              className="mt-1 w-full rounded border p-2"
-            />
-          </div>
-        </div>
-
-        {totals && (
-          <div className="rounded-lg border p-4">
-            <h3 className="mb-2 font-bold">Resumen de Facturación</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Tipo de Tarifa:</p>
-                <p className="font-medium">
-                  {formatRateType(totals.rateType, totals.rate)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Horas:</p>
-                <p className="font-medium">
-                  {formatHoursAndMinutes(totals.totalHours)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Servicios:</p>
-                <p className="font-medium">{totals.services.length}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total a Facturar:</p>
-                <p className="text-lg font-bold">
-                  {totals.rateType.includes('USD') ? '$' : 'FL'}{' '}
-                  {totals.totalAmount.toFixed(2)}
-                </p>
-              </div>
+          <div className="mb-4 grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium">Fecha Inicio</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="mt-1 w-full rounded border p-2"
+              />
             </div>
 
-            {/* Update the services table */}
-            <div className="mt-4 border-t pt-4">
-              <h4 className="mb-2 font-medium">Desglose de Servicios:</h4>
-              <div className="max-h-40 overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left">
-                      <th>Fecha</th>
-                      <th>Horas</th>
-                      <th>Monto</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {totals.services.map((service) => {
-                      const serviceAmount = service.isRefreshService
-                        ? totals.property.refreshRate
-                        : totals.property.rateType.includes('HOURLY')
-                          ? calculateExactAmount(
-                              service.hoursWorked,
-                              totals.property.regularRate
-                            )
-                          : totals.property.regularRate;
+            <div>
+              <label className="block text-sm font-medium">Fecha Fin</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="mt-1 w-full rounded border p-2"
+              />
+            </div>
 
-                      return (
-                        <tr key={service.id}>
-                          <td>
-                            {new Date(service.serviceDate).toLocaleDateString()}
-                          </td>
-                          <td>{formatHoursAndMinutes(service.hoursWorked)}</td>
-                          <td>
-                            {totals.rateType.includes('USD') ? '$' : 'FL'}{' '}
-                            {serviceAmount.toFixed(2)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+            <div>
+              <label className="block text-sm font-medium">Propiedad</label>
+              <select
+                value={selectedPropertyId}
+                onChange={(e) => setSelectedPropertyId(e.target.value)}
+                className="mt-1 w-full rounded border p-2"
+              >
+                <option value="">Seleccionar propiedad...</option>
+                {properties.map((property) => (
+                  <option key={property.id} value={property.id}>
+                    {property.name} - {property.clientName}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-        )}
 
-        <div className="mt-6 flex justify-end gap-4">
+          {totals && (
+            <div className="rounded-lg border p-4">
+              <h3 className="mb-2 font-bold">Resumen de Facturación</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Tipo de Tarifa:</p>
+                  <p className="font-medium">
+                    {formatRateType(totals.rateType, totals.rate)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Horas:</p>
+                  <p className="font-medium">
+                    {formatHoursAndMinutes(totals.totalHours)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Servicios:</p>
+                  <p className="font-medium">{totals.services.length}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total a Facturar:</p>
+                  <p className="text-lg font-bold">
+                    {totals.rateType.includes('USD') ? '$' : 'FL'}{' '}
+                    {totals.totalAmount.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Update the services table */}
+              <div className="mt-4 border-t pt-4">
+                <h4 className="mb-2 font-medium">Desglose de Servicios:</h4>
+                <div className="max-h-40 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left">
+                        <th>Fecha</th>
+                        <th>Horas</th>
+                        <th>Monto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {totals.services.map((service) => {
+                        const serviceAmount = service.isRefreshService
+                          ? totals.property.refreshRate
+                          : totals.property.rateType.includes('HOURLY')
+                            ? calculateExactAmount(
+                                service.hoursWorked,
+                                totals.property.regularRate
+                              )
+                            : totals.property.regularRate;
+
+                        return (
+                          <tr key={service.id}>
+                            <td>
+                              {new Date(
+                                service.serviceDate
+                              ).toLocaleDateString()}
+                            </td>
+                            <td>
+                              {formatHoursAndMinutes(service.hoursWorked)}
+                            </td>
+                            <td>
+                              {totals.rateType.includes('USD') ? '$' : 'FL'}{' '}
+                              {serviceAmount.toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="mt-4 flex justify-end gap-4">
+                {showDownload ? (
+                  <PDFDownloadLink
+                    document={
+                      <InvoicePDF
+                        services={totals.services}
+                        property={totals.property}
+                        startDate={new Date(startDate)}
+                        endDate={new Date(endDate)}
+                        withTax={withTax}
+                      />
+                    }
+                    fileName={`invoice-${totals.property.name}-${startDate}.pdf`}
+                    className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+                  >
+                    {({ loading }) =>
+                      loading ? 'Generando...' : 'Descargar Factura'
+                    }
+                  </PDFDownloadLink>
+                ) : (
+                  <button
+                    onClick={() => setShowTaxModal(true)}
+                    className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+                  >
+                    Generar Factura
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <button
             onClick={onCloseAction}
-            className="rounded bg-gray-200 px-4 py-2 hover:bg-gray-300"
+            className="mt-4 rounded bg-gray-200 px-4 py-2 hover:bg-gray-300"
           >
             Cerrar
           </button>
         </div>
       </div>
-    </div>
+
+      <TaxSelectionModal
+        isOpen={showTaxModal}
+        onCloseAction={() => {
+          setShowTaxModal(false);
+          setShowDownload(true); // Mostrar botón de descarga incluso si cancela
+        }}
+        onConfirmAction={handleTaxConfirm}
+      />
+    </>
   );
+}
+
+function formatHoursAndMinutes(hours: number): string {
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+  return `${wholeHours}h ${minutes.toString().padStart(2, '0')}m`;
+}
+
+function calculateExactAmount(hours: number, rate: number): number {
+  // Convertir las horas decimales a horas y minutos exactos
+  const wholeHours = Math.floor(hours);
+  const minutes = (hours - wholeHours) * 60;
+
+  // Calcular el monto por las horas completas
+  const hourlyAmount = wholeHours * rate;
+
+  // Calcular el monto por los minutos (regla de tres)
+  const minuteRate = rate / 60; // Tarifa por minuto
+  const minuteAmount = minutes * minuteRate;
+
+  return hourlyAmount + minuteAmount;
 }
