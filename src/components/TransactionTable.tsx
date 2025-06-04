@@ -110,6 +110,8 @@ interface EmployeeSelectProps {
   onChange: (employeeId: string) => void;
   employees: Employee[];
   currentUser: { firstName?: string | null };
+  isAdmin?: boolean;
+  disabled?: boolean;
 }
 
 const EmployeeSelect = ({
@@ -117,23 +119,49 @@ const EmployeeSelect = ({
   onChange,
   employees,
   currentUser,
+  isAdmin = false,
+  disabled = false,
 }: EmployeeSelectProps) => {
   const currentEmployee = employees.find(
     (e) => e.firstName?.toLowerCase() === currentUser?.firstName?.toLowerCase()
   );
 
+  // Solo asignar automáticamente el empleado actual si no es admin y es un nuevo registro
   useEffect(() => {
-    if (currentEmployee && !value) {
+    if (!isAdmin && currentEmployee && !value) {
       onChange(currentEmployee.id);
     }
-  }, [currentEmployee, onChange, value]);
+  }, [currentEmployee, onChange, value, isAdmin]);
+
+  // Si es un registro existente o es admin, mostrar el empleado asignado
+  const assignedEmployee = employees.find((e) => e.id === value);
+
+  if (isAdmin) {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className={`table-select-field w-full ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+      >
+        <option value="">Seleccionar empleado</option>
+        {employees.map((employee) => (
+          <option key={employee.id} value={employee.id}>
+            {employee.firstName} {employee.lastName}
+          </option>
+        ))}
+      </select>
+    );
+  }
 
   return (
     <div className="relative w-full">
       <div className="table-select-field w-full text-center">
-        {currentEmployee
-          ? `${currentEmployee.firstName} ${currentEmployee.lastName}`
-          : 'No encontrado'}
+        {assignedEmployee
+          ? `${assignedEmployee.firstName} ${assignedEmployee.lastName}`
+          : currentEmployee
+            ? `${currentEmployee.firstName} ${currentEmployee.lastName}`
+            : 'No encontrado'}
       </div>
     </div>
   );
@@ -271,7 +299,7 @@ export default function TransactionTable({
   onUpdateRecordAction,
 }: TransactionTableProps): React.JSX.Element {
   const { user } = useUser();
-  const { canEdit, canDelete } = useEditPermissions();
+  const { canEdit, canDelete, isAdmin } = useEditPermissions(); // Extract isAdmin here
 
   const [data, setData] = useState<CleaningService[]>(initialData);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -680,6 +708,7 @@ export default function TransactionTable({
 
       // Select de empleados
       if (field === 'employeeId') {
+        const editPermission = canEdit(row);
         return (
           <EmployeeSelect
             value={row.employeeId}
@@ -688,6 +717,8 @@ export default function TransactionTable({
             }
             employees={employees}
             currentUser={user ?? { firstName: null }}
+            isAdmin={isAdmin} // Now isAdmin is properly typed and available
+            disabled={!editPermission.allowed}
           />
         );
       }
@@ -772,6 +803,7 @@ export default function TransactionTable({
       handlePropertyChange,
       canEdit,
       user,
+      isAdmin, // Add isAdmin to the dependencies array
     ]
   );
 
