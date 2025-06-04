@@ -49,6 +49,8 @@ export interface CleaningService {
   hoursWorked: number;
   isRefreshService: boolean;
   totalAmount: number;
+  laundryFee: number;
+  refreshFee: number;
   notes?: string | null;
   createdAt: Date;
   updatedAt: Date;

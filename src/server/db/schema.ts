@@ -59,6 +59,12 @@ export const cleaningServices = pgTable('cleaning_services', {
   hoursWorked: decimal('hours_worked', { precision: 5, scale: 2 }).notNull(),
   isRefreshService: boolean('is_refresh_service').default(false).notNull(),
   totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
+  laundryFee: decimal('laundry_fee', { precision: 10, scale: 2 })
+    .default('0')
+    .notNull(),
+  refreshFee: decimal('refresh_fee', { precision: 10, scale: 2 })
+    .default('0')
+    .notNull(),
   notes: varchar('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

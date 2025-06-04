@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
+import { useUser } from '@clerk/nextjs';
+
 import { useDebouncedSave } from '~/hooks/useDebouncedSave';
 import {
   createService,
@@ -23,7 +25,7 @@ import '~/styles/deleteButton.css';
 import HeaderTitles from './HeaderTitles';
 
 type InputValue = string | number | boolean | Date | null;
-type InputType = 'text' | 'number' | 'date' | 'checkbox';
+type InputType = 'text' | 'number' | 'date' | 'checkbox' | 'select';
 type HandleInputChange = (
   id: string,
   field: keyof CleaningService,
@@ -200,6 +202,9 @@ export default function TransactionTable({
   initialData,
   onUpdateRecordAction,
 }: TransactionTableProps): React.JSX.Element {
+  const { user } = useUser();
+  const isAdmin = user?.publicMetadata?.role === 'admin';
+
   const [data, setData] = useState<CleaningService[]>(initialData);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -240,12 +245,14 @@ export default function TransactionTable({
       const newRow: CleaningService = {
         id: crypto.randomUUID(),
         propertyId: firstProperty.id,
-        employeeId: firstEmployee.id, // Use first employee ID for database constraint
+        employeeId: firstEmployee.id,
         serviceDate: colombiaDate,
         workDate: colombiaDate,
         hoursWorked: 0,
         isRefreshService: false,
         totalAmount: calculateTotalAmount(firstProperty, false, 0),
+        laundryFee: 0,
+        refreshFee: 0,
         notes: null,
         createdAt: colombiaDate,
         updatedAt: colombiaDate,
@@ -375,9 +382,34 @@ export default function TransactionTable({
     );
   }, [data]);
 
+  // Función para verificar si el registro es editable basado en la fecha
+  const isRecordEditable = (serviceDate: Date) => {
+    const today = new Date();
+    const recordDate = new Date(serviceDate);
+
+    // Resetear las horas para comparar solo fechas
+    today.setHours(0, 0, 0, 0);
+    recordDate.setHours(0, 0, 0, 0);
+
+    return recordDate.getTime() === today.getTime();
+  };
+
+  // Función para verificar si el usuario puede editar un registro
+  const canEditRecord = (record: CleaningService) => {
+    if (isAdmin) return true;
+    const userEmployeeId = user?.publicMetadata?.employeeId;
+    return (
+      record.employeeId === userEmployeeId &&
+      isRecordEditable(record.serviceDate)
+    );
+  };
+
   // Update handleInputChange to immediately trigger save
   const handleInputChange: HandleInputChange = useCallback(
     (id, field, value) => {
+      const record = data.find((r) => r.id === id);
+      if (!record || !canEditRecord(record)) return;
+
       setData((prevData) => {
         const newData = prevData.map((row) => {
           if (row.id === id) {
@@ -432,7 +464,15 @@ export default function TransactionTable({
         }
       }
     },
-    [debouncedSave, groupedByDate, properties]
+    [
+      debouncedSave,
+      groupedByDate,
+      properties,
+      isAdmin,
+      user,
+      data,
+      canEditRecord,
+    ]
   );
 
   const handleSaveChanges = async () => {
@@ -596,6 +636,52 @@ export default function TransactionTable({
         );
       }
 
+      // Campos adicionales: laundryFee y refreshFee
+      if (field === 'laundryFee') {
+        return (
+          <input
+            type="number"
+            value={row.laundryFee || ''}
+            onChange={(e) =>
+              handleInputChange(row.id, 'laundryFee', Number(e.target.value))
+            }
+            className="table-numeric-field"
+            placeholder="0.00"
+            disabled={!canEditRecord(row)}
+          />
+        );
+      }
+
+      if (field === 'refreshFee') {
+        const property = properties.find((p) => p.id === row.propertyId);
+        const options = property?.rateType.includes('USD')
+          ? [
+              { value: '20', label: '$ 20.00' },
+              { value: '50', label: '$ 50.00' },
+            ]
+          : [
+              { value: '20', label: 'FL 20.00' },
+              { value: '50', label: 'FL 50.00' },
+            ];
+
+        return (
+          <select
+            value={row.refreshFee || ''}
+            onChange={(e) =>
+              handleInputChange(row.id, 'refreshFee', Number(e.target.value))
+            }
+            className="table-select-field"
+          >
+            <option value="">Seleccionar</option>
+            {options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        );
+      }
+
       // Campos numéricos y texto
       return (
         <input
@@ -608,10 +694,19 @@ export default function TransactionTable({
             handleInputChange(row.id, field, newValue);
           }}
           className={`flex items-center justify-center overflow-hidden rounded border px-0.5 py-0.5 text-center text-[10px] ${getWidth()}`}
+          disabled={!canEditRecord(row)}
         />
       );
     },
-    [handleInputChange, properties, employees, handlePropertyChange]
+    [
+      handleInputChange,
+      properties,
+      employees,
+      handlePropertyChange,
+      canEditRecord,
+      isAdmin,
+      user,
+    ]
   );
 
   // Memoize the current date group and related data
@@ -724,6 +819,7 @@ export default function TransactionTable({
     <div className="relative">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
+          {/* Solo mostrar botón de agregar para todos */}
           <button
             onClick={handleAddRecord}
             disabled={isAddingRecord}
@@ -764,32 +860,36 @@ export default function TransactionTable({
             </span>
           </button>
 
-          <button onClick={handleDeleteModeToggle} className="delete-button">
-            <span className="text">
-              {isDeleteMode ? 'Cancelar' : 'Eliminar'}
-            </span>
-            <span className="icon">
-              {isDeleteMode ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M24 20.188l-8.315-8.209 8.2-8.282-3.697-3.697-8.212 8.318-8.31-8.203-3.666 3.666 8.321 8.24-8.206 8.313 3.666 3.666 8.237-8.318 8.285 8.203z" />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M3 6v18h18v-18h-18zm5 14c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm4-18v2h-20v-2h5.711c.9 0 1.631-1.099 1.631-2h5.315c0 .901.73 2 1.631 2h5.712z" />
-                </svg>
-              )}
-            </span>
-          </button>
+          {/* Solo mostrar botones de eliminar para admin */}
+          {isAdmin && (
+            <button onClick={handleDeleteModeToggle} className="delete-button">
+              <span className="text">
+                {isDeleteMode ? 'Cancelar' : 'Eliminar'}
+              </span>
+              <span className="icon">
+                {isDeleteMode ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M24 20.188l-8.315-8.209 8.2-8.282-3.697-3.697-8.212 8.318-8.31-8.203-3.666 3.666 8.321 8.24-8.206 8.313 3.666 3.666 8.237-8.318 8.285 8.203z" />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M3 6v18h18v-18h-18zm5 14c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm4-18v2h-20v-2h5.711c.9 0 1.631-1.099 1.631-2h5.315c0 .901.73 2 1.631 2h5.712z" />
+                  </svg>
+                )}
+              </span>
+            </button>
+          )}
+
           {isDeleteMode && rowsToDelete.size > 0 && (
             <button
               onClick={handleDeleteSelected}
@@ -878,7 +978,7 @@ export default function TransactionTable({
               {paginatedData.map((row) => (
                 <tr key={row.id} className="border-b hover:bg-gray-50">
                   {isDeleteMode && (
-                    <td className=" border-r px-0.5 py-0.5 text-center whitespace-nowrap">
+                    <td className="border-r px-0.5 py-0.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center">
                         <input
                           type="checkbox"
@@ -912,6 +1012,12 @@ export default function TransactionTable({
                   </td>
                   <td className="table-cell whitespace-nowrap">
                     {renderInput(row, 'workDate', 'date')}
+                  </td>
+                  <td className="table-cell whitespace-nowrap">
+                    {renderInput(row, 'laundryFee', 'number')}
+                  </td>
+                  <td className="table-cell whitespace-nowrap">
+                    {renderInput(row, 'refreshFee', 'select')}
                   </td>
                 </tr>
               ))}

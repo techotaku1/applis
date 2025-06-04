@@ -160,10 +160,12 @@ export function InvoicePDF({
   endDate,
   withTax = false,
 }: InvoicePDFProps & { withTax?: boolean }) {
-  // Calculate total amount from services
+  // Calculate total amount including additional fees
   const totalAmount = services.reduce((sum, service) => {
     const serviceAmount = calculateServiceAmount(service, property);
-    return sum + serviceAmount;
+    const laundryFee = service.laundryFee || 0;
+    const refreshFee = service.refreshFee || 0;
+    return sum + serviceAmount + laundryFee + refreshFee;
   }, 0);
 
   const tax = withTax ? totalAmount * 0.07 : 0;
@@ -210,28 +212,46 @@ export function InvoicePDF({
 
           {services.map((service) => {
             const serviceAmount = calculateServiceAmount(service, property);
+            const hasExtras = service.laundryFee > 0 || service.refreshFee > 0;
 
             return (
-              <View key={service.id} style={styles.tableRow}>
-                <Text style={styles.col1}>
-                  {new Date(service.serviceDate).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </Text>
-                <Text style={styles.col2}>
-                  {formatTotalHours(service.hoursWorked)}
-                </Text>
-                <Text style={styles.col3}>
-                  {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
-                  {property.regularRate.toFixed(2)}
-                </Text>
-                <Text style={styles.col4}>
-                  {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
-                  {serviceAmount.toFixed(2)}
-                </Text>
-              </View>
+              <>
+                <View key={service.id} style={styles.tableRow}>
+                  <Text style={styles.col1}>
+                    {new Date(service.serviceDate).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </Text>
+                  <Text style={styles.col2}>
+                    {formatTotalHours(service.hoursWorked)}
+                  </Text>
+                  <Text style={styles.col3}>
+                    {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
+                    {property.regularRate.toFixed(2)}
+                  </Text>
+                  <Text style={styles.col4}>
+                    {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
+                    {serviceAmount.toFixed(2)}
+                  </Text>
+                </View>
+                {hasExtras && (
+                  <View
+                    style={[styles.tableRow, { backgroundColor: '#f5f5f5' }]}
+                  >
+                    <Text style={styles.col1}>Gastos Adicionales:</Text>
+                    <Text style={styles.col2} />
+                    <Text style={styles.col3} />
+                    <Text style={styles.col4}>
+                      {service.laundryFee > 0 &&
+                        `Lavandería: ${property.rateType.includes('USD') ? '$' : 'FL'} ${service.laundryFee}\n`}
+                      {service.refreshFee > 0 &&
+                        `Refresh: ${property.rateType.includes('USD') ? '$' : 'FL'} ${service.refreshFee}`}
+                    </Text>
+                  </View>
+                )}
+              </>
             );
           })}
         </View>

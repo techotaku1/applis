@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { auth } from '@clerk/nextjs/server';
 import { eq, desc, inArray } from 'drizzle-orm';
 
 import { db } from '~/server/db';
@@ -46,18 +47,29 @@ async function withRetry<T>(
 
 export async function getServices(): Promise<CleaningService[]> {
   try {
-    const results = await withRetry(() =>
-      db
-        .select()
-        .from(cleaningServices)
-        .orderBy(desc(cleaningServices.serviceDate))
-    );
+    const { sessionClaims } = await auth();
+    const isAdmin = sessionClaims?.metadata?.role === 'admin';
+    const employeeId = sessionClaims?.metadata?.employeeId;
+
+    const query = db
+      .select()
+      .from(cleaningServices)
+      .orderBy(desc(cleaningServices.serviceDate));
+
+    // Si no es admin, filtrar solo los servicios del empleado
+    if (!isAdmin && employeeId) {
+      query.where(eq(cleaningServices.employeeId, employeeId));
+    }
+
+    const results = await withRetry(() => query);
 
     return results.map((record) => ({
       ...record,
       serviceDate: new Date(record.serviceDate),
       hoursWorked: Number(record.hoursWorked),
       totalAmount: Number(record.totalAmount),
+      laundryFee: Number(record.laundryFee),
+      refreshFee: Number(record.refreshFee),
     }));
   } catch (error) {
     console.error('Error fetching services:', error);
@@ -118,6 +130,8 @@ export async function createService(
       ...service,
       hoursWorked: service.hoursWorked.toString(),
       totalAmount: service.totalAmount.toString(),
+      laundryFee: service.laundryFee.toString(),
+      refreshFee: service.refreshFee.toString(),
     });
     revalidatePath('/');
     return { success: true };
@@ -143,6 +157,8 @@ export async function updateServices(
             ...service,
             hoursWorked: service.hoursWorked.toString(),
             totalAmount: service.totalAmount.toString(),
+            laundryFee: service.laundryFee.toString(),
+            refreshFee: service.refreshFee.toString(),
             updatedAt: new Date(),
           })
           .where(eq(cleaningServices.id, service.id));

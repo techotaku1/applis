@@ -1,8 +1,10 @@
-import '~/styles/globals.css';
 import { Delius, Lexend } from 'next/font/google';
 
+import { esMX } from '@clerk/localizations';
+import { UserButton, ClerkProvider } from '@clerk/nextjs';
 import { type Metadata } from 'next';
 
+import '~/styles/globals.css';
 import Background from '~/components/Background';
 
 export const metadata: Metadata = {
@@ -29,11 +31,16 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={`${delius.variable} ${lexend.variable}`}>
-      <body>
-        <Background />
-        {children}
-      </body>
-    </html>
+    <ClerkProvider localization={esMX}>
+      <html lang="es-MX" className={`${delius.variable} ${lexend.variable}`}>
+        <body>
+          <header className="fixed top-0 right-0 z-50 flex h-16 items-center justify-end gap-4 p-4">
+            <UserButton />
+          </header>
+          <Background />
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

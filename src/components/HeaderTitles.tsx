@@ -12,6 +12,8 @@ export default function HeaderTitles({
     'Empleado',
     'Horas',
     'Hora Final',
+    'Lavandería',
+    'Refresh',
   ];
 
   return (
