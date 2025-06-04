@@ -122,30 +122,35 @@ interface EmployeeSelectProps {
   value: string;
   onChange: (employeeId: string) => void;
   employees: Employee[];
+  currentUser: { firstName?: string | null };
 }
 
 const EmployeeSelect = ({
   value,
   onChange,
   employees,
-}: EmployeeSelectProps) => (
-  <div className="relative w-full">
-    <select
-      value={value || ''} // Add default empty value
-      onChange={(e) => onChange(e.target.value)}
-      className="table-select-field w-full"
-    >
-      <option value="" className="text-center">
-        Seleccionar empleado
-      </option>
-      {employees.map((employee: Employee) => (
-        <option key={employee.id} value={employee.id} className="text-center">
-          {employee.firstName} {employee.lastName}
-        </option>
-      ))}
-    </select>
-  </div>
-);
+  currentUser,
+}: EmployeeSelectProps) => {
+  const currentEmployee = employees.find(
+    (e) => e.firstName?.toLowerCase() === currentUser?.firstName?.toLowerCase()
+  );
+
+  useEffect(() => {
+    if (currentEmployee && !value) {
+      onChange(currentEmployee.id);
+    }
+  }, [currentEmployee, onChange, value]);
+
+  return (
+    <div className="relative w-full">
+      <div className="table-select-field w-full text-center">
+        {currentEmployee
+          ? `${currentEmployee.firstName} ${currentEmployee.lastName}`
+          : 'No encontrado'}
+      </div>
+    </div>
+  );
+};
 
 function calculateTotalAmount(
   property: Property,
@@ -198,12 +203,54 @@ function parseLocalDateToUTC(dateStr: string): Date {
   }
 }
 
+// Keep isRecordEditable as utility function at the top level
+function isRecordEditable(serviceDate: Date): boolean {
+  const today = new Date();
+  const recordDate = new Date(serviceDate);
+  today.setHours(0, 0, 0, 0);
+  recordDate.setHours(0, 0, 0, 0);
+  return recordDate.getTime() === today.getTime();
+}
+
+// Create a custom hook for edit permissions
+function useEditPermissions() {
+  const { user } = useUser();
+  const isAdmin = user?.publicMetadata?.role === 'admin';
+  const userEmployeeId = user?.publicMetadata?.employeeId as string | undefined;
+
+  return useCallback(
+    (record: CleaningService) => {
+      // Para debugging
+      console.log('Checking permissions:', {
+        isAdmin,
+        userEmployeeId,
+        recordEmployeeId: record.employeeId,
+        record,
+      });
+
+      // Si es admin, siempre puede editar
+      if (isAdmin) return true;
+
+      // Si es un empleado nuevo sin employeeId asignado, permitir editar
+      if (!record.employeeId) return true;
+
+      // Verificar coincidencia de IDs y fecha
+      return (
+        record.employeeId === userEmployeeId &&
+        isRecordEditable(record.serviceDate)
+      );
+    },
+    [isAdmin, userEmployeeId]
+  );
+}
+
 export default function TransactionTable({
   initialData,
   onUpdateRecordAction,
 }: TransactionTableProps): React.JSX.Element {
   const { user } = useUser();
   const isAdmin = user?.publicMetadata?.role === 'admin';
+  const canEdit = useEditPermissions();
 
   const [data, setData] = useState<CleaningService[]>(initialData);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -236,7 +283,7 @@ export default function TransactionTable({
       const colombiaDate = getCurrentColombiaDate();
       const results = await Promise.all([getProperties(), getEmployees()]);
       const firstProperty = results[0]?.[0];
-      const firstEmployee = results[1]?.[0]; // We need this for the database constraint
+      const firstEmployee = results[1]?.[0];
 
       if (!firstProperty || !firstEmployee) {
         throw new Error('No hay propiedades o empleados disponibles');
@@ -260,13 +307,22 @@ export default function TransactionTable({
 
       const result = await createService(newRow);
       if (result.success) {
-        // After successful creation, set empty employeeId for UI
-        const uiRow = {
-          ...newRow,
-          employeeId: '', // Empty for UI to show "Seleccionar empleado"
-        };
-        setData((prevData) => [uiRow, ...prevData]);
-        await handleSaveOperation([newRow, ...data]);
+        // Modificar esta parte para mantener el estado consistente
+        setData((prevData) => {
+          // Crear una copia del nuevo registro para la UI
+          const uiRow = {
+            ...newRow,
+            employeeId: '', // Empty for UI to show "Seleccionar empleado"
+          };
+
+          // Agregar el nuevo registro al inicio del array
+          const newData = [uiRow, ...prevData];
+
+          // No es necesario llamar a handleSaveOperation aquí
+          // ya que createService ya guardó el registro
+
+          return newData;
+        });
 
         // Update current page to today's date
         const todayStr = colombiaDate.toISOString().split('T')[0];
@@ -330,24 +386,6 @@ export default function TransactionTable({
     [debouncedSave]
   );
 
-  // Actualizar la función para manejar CleaningService[]
-  const handleSaveOperation = useCallback(
-    async (records: CleaningService[]): Promise<SaveResult> => {
-      // Don't show spinner for auto-save operations
-      const isAutoSave = !unsavedChanges;
-      try {
-        if (!isAutoSave) setIsSaving(true);
-        return await onUpdateRecordAction(records);
-      } catch (error) {
-        console.error('Error saving changes:', error);
-        return { success: false, error: 'Failed to save changes' };
-      } finally {
-        if (!isAutoSave) setIsSaving(false);
-      }
-    },
-    [onUpdateRecordAction, unsavedChanges]
-  );
-
   // Actualizar groupedByDate para usar serviceDate en lugar de fecha
   const groupedByDate = useMemo(() => {
     const groups = new Map<string, CleaningService[]>();
@@ -382,33 +420,44 @@ export default function TransactionTable({
     );
   }, [data]);
 
-  // Función para verificar si el registro es editable basado en la fecha
-  const isRecordEditable = (serviceDate: Date) => {
-    const today = new Date();
-    const recordDate = new Date(serviceDate);
-
-    // Resetear las horas para comparar solo fechas
-    today.setHours(0, 0, 0, 0);
-    recordDate.setHours(0, 0, 0, 0);
-
-    return recordDate.getTime() === today.getTime();
-  };
-
-  // Función para verificar si el usuario puede editar un registro
-  const canEditRecord = (record: CleaningService) => {
-    if (isAdmin) return true;
-    const userEmployeeId = user?.publicMetadata?.employeeId;
-    return (
-      record.employeeId === userEmployeeId &&
-      isRecordEditable(record.serviceDate)
-    );
-  };
-
-  // Update handleInputChange to immediately trigger save
+  // Update handleInputChange to use canEdit
   const handleInputChange: HandleInputChange = useCallback(
     (id, field, value) => {
       const record = data.find((r) => r.id === id);
-      if (!record || !canEditRecord(record)) return;
+
+      // Para debugging
+      console.log('Record found:', record);
+      console.log('Can edit check:', record ? canEdit(record) : false);
+
+      if (!record) {
+        console.error('Record not found:', id);
+        return;
+      }
+
+      // Permitir siempre editar el employeeId para registros nuevos
+      if (field === 'employeeId' && !record.employeeId) {
+        setData((prevData) => {
+          const newData = prevData.map((row) => {
+            if (row.id === id) {
+              const updatedRow = { ...row };
+              updatedRow[field] = value as never;
+              return updatedRow;
+            }
+            return row;
+          });
+
+          // Trigger save immediately after state update
+          setUnsavedChanges(true);
+          void debouncedSave(newData);
+          return newData;
+        });
+        return;
+      }
+
+      if (!canEdit(record)) {
+        console.error('Record not editable:', record);
+        return;
+      }
 
       setData((prevData) => {
         const newData = prevData.map((row) => {
@@ -464,15 +513,7 @@ export default function TransactionTable({
         }
       }
     },
-    [
-      debouncedSave,
-      groupedByDate,
-      properties,
-      isAdmin,
-      user,
-      data,
-      canEditRecord,
-    ]
+    [data, debouncedSave, groupedByDate, properties, canEdit]
   );
 
   const handleSaveChanges = async () => {
@@ -621,6 +662,7 @@ export default function TransactionTable({
               handleInputChange(row.id, 'employeeId', employeeId)
             }
             employees={employees}
+            currentUser={user ?? { firstName: null }}
           />
         );
       }
@@ -647,7 +689,7 @@ export default function TransactionTable({
             }
             className="table-numeric-field"
             placeholder="0.00"
-            disabled={!canEditRecord(row)}
+            disabled={!canEdit(row)}
           />
         );
       }
@@ -694,7 +736,7 @@ export default function TransactionTable({
             handleInputChange(row.id, field, newValue);
           }}
           className={`flex items-center justify-center overflow-hidden rounded border px-0.5 py-0.5 text-center text-[10px] ${getWidth()}`}
-          disabled={!canEditRecord(row)}
+          disabled={!canEdit(row)}
         />
       );
     },
@@ -703,8 +745,7 @@ export default function TransactionTable({
       properties,
       employees,
       handlePropertyChange,
-      canEditRecord,
-      isAdmin,
+      canEdit,
       user,
     ]
   );

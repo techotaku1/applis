@@ -43,6 +43,7 @@ export const employees = pgTable('employees', {
   email: varchar('email'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  clerkId: varchar('clerk_id').unique(), // Add this line
 });
 
 // Cleaning Services table
@@ -69,3 +70,8 @@ export const cleaningServices = pgTable('cleaning_services', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// Create a helper type for employee with clerk data
+export type EmployeeWithClerk = typeof employees.$inferSelect & {
+  clerkId: string | null;
+};

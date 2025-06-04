@@ -24,6 +24,7 @@ export default function Page() {
             },
           },
         }}
+        signInFallbackRedirectUrl="/link-employee" // Redirigir aquí después del registro
       />
     </AuthLayout>
   );

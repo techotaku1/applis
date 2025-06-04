@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { auth } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { eq, desc, inArray } from 'drizzle-orm';
 
 import { db } from '~/server/db';
@@ -47,9 +47,16 @@ async function withRetry<T>(
 
 export async function getServices(): Promise<CleaningService[]> {
   try {
-    const { sessionClaims } = await auth();
-    const isAdmin = sessionClaims?.metadata?.role === 'admin';
-    const employeeId = sessionClaims?.metadata?.employeeId;
+    const { userId } = await auth();
+    let isAdmin = false;
+    let employeeId: string | undefined;
+
+    if (userId) {
+      const client = await clerkClient();
+      const user = await client.users.getUser(userId);
+      isAdmin = user.publicMetadata?.role === 'admin';
+      employeeId = user.publicMetadata?.employeeId as string | undefined;
+    }
 
     const query = db
       .select()
