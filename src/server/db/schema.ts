@@ -44,6 +44,7 @@ export const employees = pgTable('employees', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   clerkId: varchar('clerk_id').unique(), // Add this line
+  role: varchar('role').default('employee').notNull(), // Agregar campo role
 });
 
 // Cleaning Services table
@@ -74,4 +75,5 @@ export const cleaningServices = pgTable('cleaning_services', {
 // Create a helper type for employee with clerk data
 export type EmployeeWithClerk = typeof employees.$inferSelect & {
   clerkId: string | null;
+  role: 'admin' | 'employee';
 };

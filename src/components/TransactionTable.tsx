@@ -76,12 +76,14 @@ interface PropertySelectProps {
   value: string;
   onChange: (propertyId: string, property: Property) => void;
   properties: Property[];
+  disabled?: boolean;
 }
 
 const PropertySelect = ({
   value,
   onChange,
   properties,
+  disabled = false,
 }: PropertySelectProps) => (
   <select
     value={value}
@@ -91,7 +93,8 @@ const PropertySelect = ({
         onChange(e.target.value, property);
       }
     }}
-    className="table-select-field w-full"
+    disabled={disabled}
+    className={`table-select-field w-full ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
   >
     <option value="">Seleccionar propiedad</option>
     {properties.map((property) => (
@@ -662,6 +665,7 @@ export default function TransactionTable({
 
       // Selección de propiedad
       if (field === 'propertyId') {
+        const editPermission = canEdit(row);
         return (
           <PropertySelect
             value={row.propertyId}
@@ -669,6 +673,7 @@ export default function TransactionTable({
               handlePropertyChange(row.id, propertyId, property)
             }
             properties={properties}
+            disabled={!editPermission.allowed}
           />
         );
       }

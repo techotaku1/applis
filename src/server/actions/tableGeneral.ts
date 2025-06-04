@@ -14,6 +14,7 @@ import type {
   Employee,
   RateType,
   TaxStatus,
+  UserRole, // Add UserRole import
 } from '~/types';
 
 class DatabaseError extends Error {
@@ -126,7 +127,20 @@ export async function deleteRecords(): Promise<{ success: boolean }> {
 }
 
 export async function getEmployees(): Promise<Employee[]> {
-  return await db.select().from(employees);
+  try {
+    const results = await db.select().from(employees);
+    return results.map((employee) => ({
+      ...employee,
+      role: (employee.role || 'employee') as UserRole, // Add default value and safe type cast
+    }));
+  } catch (error) {
+    // Safe error handling
+    console.error('Error fetching employees:', error);
+    throw new DatabaseError(
+      'Failed to fetch employees',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+  }
 }
 
 export async function createService(

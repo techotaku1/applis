@@ -15,6 +15,13 @@ export const TAX_STATUS = {
 
 export type TaxStatus = (typeof TAX_STATUS)[keyof typeof TAX_STATUS];
 
+export const USER_ROLES = {
+  ADMIN: 'admin',
+  EMPLOYEE: 'employee',
+} as const;
+
+export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
+
 export interface Property {
   id: string;
   name: string;
@@ -38,6 +45,8 @@ export interface Employee {
   email?: string | null;
   createdAt: Date;
   updatedAt: Date;
+  clerkId?: string | null;
+  role: UserRole; // Aquí está el cambio clave - usar UserRole en lugar de string
 }
 
 export interface CleaningService {
