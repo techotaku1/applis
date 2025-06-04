@@ -4,7 +4,7 @@ import AuthLayout from '~/components/AuthLayout';
 
 export default function Page() {
   return (
-    <div className="flex h-screen w-full p-4">
+    <div className="p-4">
       <AuthLayout>
         <SignUp
           appearance={{
