@@ -12,7 +12,7 @@ import { SWRProvider } from '~/components/SWRProvider';
 import Loading from './loading';
 
 export default function HomePage() {
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
 
   useEffect(() => {
@@ -27,12 +27,7 @@ export default function HomePage() {
 
   return (
     <SWRProvider>
-      <div className="flex flex-col items-center gap-4">
-        <h1 className="text-2xl font-bold">
-          ¡Bienvenido, {user?.firstName ?? 'Usuario'}!
-        </h1>
-        <ClientPage />
-      </div>
+      <ClientPage />
     </SWRProvider>
   );
 }

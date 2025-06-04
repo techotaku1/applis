@@ -37,12 +37,11 @@ interface TransactionTableProps {
   onUpdateRecordAction: (records: CleaningService[]) => Promise<SaveResult>;
 }
 
+// Actualizar la función getCurrentColombiaDate
 function getCurrentColombiaDate(): Date {
   const now = new Date();
-  // Convertir a zona horaria de Colombia
-  const colombiaDate = new Date(
-    now.toLocaleString('en-US', { timeZone: 'America/Bogota' })
-  );
+  const colombiaOptions = { timeZone: 'America/Bogota' };
+  const colombiaDate = new Date(now.toLocaleString('en-US', colombiaOptions));
   return colombiaDate;
 }
 
@@ -55,33 +54,18 @@ function calculateHoursBetweenDates(startDate: Date, endDate: Date): number {
   return hours + minutes / 60; // Convert to decimal hours
 }
 
-// Update the formatting function to handle minutes better
-function formatHoursAndMinutes(totalHours: number): string {
-  const hours = Math.floor(totalHours);
-  const decimalPart = totalHours - hours;
-  const minutes = Math.round(decimalPart * 60);
-  return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
-}
-
-// Modificar la función formatCurrentDate para usar la misma lógica que getCurrentColombiaDate
+// Actualizar la función formatCurrentDate
 function formatCurrentDate(date: Date): string {
   try {
-    // Ajustar la fecha a Colombia sin usar toLocaleString
-    const utcDate = new Date(date.getTime());
-    // Ajustar a UTC-5 (Colombia)
-    const colombiaOffset = 5 * 60 * 60 * 1000; // 5 horas en milisegundos
-    const colombiaDate = new Date(utcDate.getTime() + colombiaOffset);
-
     const options = {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
+      timeZone: 'America/Bogota',
     } as const;
 
-    return new Intl.DateTimeFormat('es-CO', options)
-      .format(colombiaDate)
-      .toUpperCase();
+    return new Intl.DateTimeFormat('es-CO', options).format(date).toUpperCase();
   } catch (error) {
     console.error('Error formatting date:', error);
     return new Date().toLocaleDateString('es-CO');
@@ -242,6 +226,13 @@ function useEditPermissions() {
     },
     [isAdmin, userEmployeeId]
   );
+}
+
+// Move formatHoursAndMinutes to the top with other utility functions
+function formatHoursAndMinutes(hours: number): string {
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+  return `${wholeHours}h ${minutes.toString().padStart(2, '0')}m`;
 }
 
 export default function TransactionTable({
@@ -768,17 +759,15 @@ export default function TransactionTable({
     if (!dateStr) return;
 
     try {
-      // Convertir la fecha usando el mismo ajuste de zona horaria
-      const date = new Date(dateStr);
-      const utcDate = new Date(date.getTime());
-      const colombiaOffset = 5 * 60 * 60 * 1000;
-      const colombiaDate = new Date(utcDate.getTime() + colombiaOffset);
-
-      setCurrentDate(formatCurrentDate(colombiaDate));
+      // Get the first service date from the group to ensure exact match
+      const firstService = paginatedData[0];
+      if (firstService) {
+        setCurrentDate(formatCurrentDate(firstService.serviceDate));
+      }
     } catch (error) {
       console.error('Error handling date group:', error);
     }
-  }, [currentDateGroup]);
+  }, [currentDateGroup, paginatedData]);
 
   // Add pagination controls component
   const Pagination = () => (
@@ -860,6 +849,7 @@ export default function TransactionTable({
     <div className="relative">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
+          {/* Eliminar el título de bienvenida de aquí */}
           {/* Solo mostrar botón de agregar para todos */}
           <button
             onClick={handleAddRecord}
@@ -990,6 +980,7 @@ export default function TransactionTable({
         </time>
       </div>
 
+      {/* ...rest of the component... */}
       {/* Modificar la sección de la tabla */}
       <div
         className="table-container"

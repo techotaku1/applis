@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import { useUser } from '@clerk/nextjs';
+
 import { useServices, useProperties, useEmployees } from '~/hooks/useAppData';
 import { updateServices } from '~/server/actions/tableGeneral';
 
@@ -14,6 +16,7 @@ import TransactionTable from './TransactionTable';
 type TableView = 'services' | 'hours' | 'property-hours';
 
 export default function ClientPage() {
+  const { user } = useUser();
   const [currentView, setCurrentView] = useState<TableView>('services');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
@@ -35,8 +38,8 @@ export default function ClientPage() {
   return (
     <main className="container mx-auto h-screen p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="font-display text-3xl font-bold tracking-tight text-black">
-          Registro de Servicios
+        <h1 className="ml-8 -mt-2 font-display text-3xl font-bold tracking-tight text-black">
+          ¡Bienvenido, {user?.firstName ?? 'Usuario'}!
         </h1>
         <div className="flex gap-4">
           <button
