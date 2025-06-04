@@ -187,48 +187,76 @@ function parseLocalDateToUTC(dateStr: string): Date {
   }
 }
 
-// Keep isRecordEditable as utility function at the top level
-function isRecordEditable(serviceDate: Date): boolean {
-  const today = new Date();
-  const recordDate = new Date(serviceDate);
-  today.setHours(0, 0, 0, 0);
-  recordDate.setHours(0, 0, 0, 0);
-  return recordDate.getTime() === today.getTime();
-}
-
-// Create a custom hook for edit permissions
+// Keep just one implementation of useEditPermissions
 function useEditPermissions() {
   const { user } = useUser();
   const isAdmin = user?.publicMetadata?.role === 'admin';
   const userEmployeeId = user?.publicMetadata?.employeeId as string | undefined;
 
-  return useCallback(
-    (record: CleaningService) => {
-      // Para debugging
-      console.log('Checking permissions:', {
-        isAdmin,
-        userEmployeeId,
-        recordEmployeeId: record.employeeId,
-        record,
-      });
+  return {
+    canEdit: useCallback(
+      (record: CleaningService) => {
+        // Add validation to ensure record is not empty
+        if (!record || typeof record !== 'object') {
+          return { allowed: false, message: 'Registro no válido' };
+        }
 
-      // Si es admin, siempre puede editar
-      if (isAdmin) return true;
+        if (isAdmin) return { allowed: true };
 
-      // Si es un empleado nuevo sin employeeId asignado, permitir editar
-      if (!record.employeeId) return true;
+        const today = getCurrentColombiaDate();
+        const recordDate = new Date(record.serviceDate);
+        today.setHours(0, 0, 0, 0);
+        recordDate.setHours(0, 0, 0, 0);
 
-      // Verificar coincidencia de IDs y fecha
-      return (
-        record.employeeId === userEmployeeId &&
-        isRecordEditable(record.serviceDate)
-      );
-    },
-    [isAdmin, userEmployeeId]
-  );
+        if (recordDate.getTime() < today.getTime()) {
+          return {
+            allowed: false,
+            message: 'No se pueden editar registros de días anteriores',
+          };
+        }
+
+        if (!record.employeeId) return { allowed: true };
+
+        if (record.employeeId !== userEmployeeId) {
+          return {
+            allowed: false,
+            message: 'Solo puedes editar tus propios registros',
+          };
+        }
+
+        return { allowed: true };
+      },
+      [isAdmin, userEmployeeId]
+    ),
+    canDelete: useCallback(
+      (record: CleaningService) => {
+        // Add validation for delete permission
+        if (!record || typeof record !== 'object') {
+          return { allowed: false, message: 'Registro no válido' };
+        }
+
+        if (isAdmin) return { allowed: true };
+
+        const today = getCurrentColombiaDate();
+        const recordDate = new Date(record.serviceDate);
+        today.setHours(0, 0, 0, 0);
+        recordDate.setHours(0, 0, 0, 0);
+
+        if (recordDate.getTime() < today.getTime()) {
+          return {
+            allowed: false,
+            message: 'No se pueden eliminar registros de días anteriores',
+          };
+        }
+
+        return { allowed: true };
+      },
+      [isAdmin]
+    ),
+    isAdmin,
+  };
 }
 
-// Move formatHoursAndMinutes to the top with other utility functions
 function formatHoursAndMinutes(hours: number): string {
   const wholeHours = Math.floor(hours);
   const minutes = Math.round((hours - wholeHours) * 60);
@@ -240,8 +268,7 @@ export default function TransactionTable({
   onUpdateRecordAction,
 }: TransactionTableProps): React.JSX.Element {
   const { user } = useUser();
-  const isAdmin = user?.publicMetadata?.role === 'admin';
-  const canEdit = useEditPermissions();
+  const { canEdit, canDelete } = useEditPermissions();
 
   const [data, setData] = useState<CleaningService[]>(initialData);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -416,16 +443,17 @@ export default function TransactionTable({
     (id, field, value) => {
       const record = data.find((r) => r.id === id);
 
-      // Para debugging
-      console.log('Record found:', record);
-      console.log('Can edit check:', record ? canEdit(record) : false);
-
       if (!record) {
-        console.error('Record not found:', id);
+        alert('Registro no encontrado');
         return;
       }
 
-      // Permitir siempre editar el employeeId para registros nuevos
+      if (!record.serviceDate || !(record.serviceDate instanceof Date)) {
+        alert('Fecha de servicio inválida');
+        return;
+      }
+
+      // Special case for new records
       if (field === 'employeeId' && !record.employeeId) {
         setData((prevData) => {
           const newData = prevData.map((row) => {
@@ -445,8 +473,9 @@ export default function TransactionTable({
         return;
       }
 
-      if (!canEdit(record)) {
-        console.error('Record not editable:', record);
+      const editPermission = canEdit(record);
+      if (!editPermission.allowed) {
+        alert(editPermission.message);
         return;
       }
 
@@ -806,20 +835,34 @@ export default function TransactionTable({
     });
   }, []);
 
-  const handleDeleteModeToggle = () => {
+  const handleDeleteModeToggle = useCallback(() => {
     setIsDeleteMode(!isDeleteMode);
     setRowsToDelete(new Set());
-  };
+  }, [isDeleteMode]);
 
-  const handleDeleteSelect = (id: string) => {
-    const newSelected = new Set(rowsToDelete);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setRowsToDelete(newSelected);
-  };
+  const handleDeleteSelect = useCallback(
+    (id: string) => {
+      const record = data.find((r) => r.id === id);
+      if (!record) return;
+
+      const deletePermission = canDelete(record);
+      if (!deletePermission.allowed) {
+        alert(deletePermission.message);
+        return;
+      }
+
+      setRowsToDelete((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(id)) {
+          newSet.delete(id);
+        } else {
+          newSet.add(id);
+        }
+        return newSet;
+      });
+    },
+    [data, canDelete]
+  );
 
   const handleDeleteSelected = async () => {
     if (rowsToDelete.size === 0) return;
@@ -849,8 +892,7 @@ export default function TransactionTable({
     <div className="relative">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {/* Eliminar el título de bienvenida de aquí */}
-          {/* Solo mostrar botón de agregar para todos */}
+          {/* Botón agregar */}
           <button
             onClick={handleAddRecord}
             disabled={isAddingRecord}
@@ -891,35 +933,33 @@ export default function TransactionTable({
             </span>
           </button>
 
-          {/* Solo mostrar botones de eliminar para admin */}
-          {isAdmin && (
-            <button onClick={handleDeleteModeToggle} className="delete-button">
-              <span className="text">
-                {isDeleteMode ? 'Cancelar' : 'Eliminar'}
-              </span>
-              <span className="icon">
-                {isDeleteMode ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M24 20.188l-8.315-8.209 8.2-8.282-3.697-3.697-8.212 8.318-8.31-8.203-3.666 3.666 8.321 8.24-8.206 8.313 3.666 3.666 8.237-8.318 8.285 8.203z" />
-                  </svg>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M3 6v18h18v-18h-18zm5 14c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm4-18v2h-20v-2h5.711c.9 0 1.631-1.099 1.631-2h5.315c0 .901.73 2 1.631 2h5.712z" />
-                  </svg>
-                )}
-              </span>
-            </button>
-          )}
+          {/* Mostrar botón eliminar */}
+          <button onClick={handleDeleteModeToggle} className="delete-button">
+            <span className="text">
+              {isDeleteMode ? 'Cancelar' : 'Eliminar'}
+            </span>
+            <span className="icon">
+              {isDeleteMode ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M24 20.188l-8.315-8.209 8.2-8.282-3.697-3.697-8.212 8.318-8.31-8.203-3.666 3.666 8.321 8.24-8.206 8.313 3.666 3.666 8.237-8.318 8.285 8.203z" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M3 6v18h18v-18h-18zm5 14c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm4-18v2h-20v-2h5.711c.9 0 1.631-1.099 1.631-2h5.315c0 .901.73 2 1.631 2h5.712z" />
+                </svg>
+              )}
+            </span>
+          </button>
 
           {isDeleteMode && rowsToDelete.size > 0 && (
             <button
@@ -929,32 +969,19 @@ export default function TransactionTable({
               Eliminar ({rowsToDelete.size})
             </button>
           )}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSaveChanges}
-              disabled={!unsavedChanges || isSaving}
-              className="rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 disabled:opacity-50"
-            >
-              {isSaving
-                ? 'Guardando...'
-                : unsavedChanges
-                  ? 'Guardar'
-                  : 'Guardado'}
-            </button>
-            {/* Solo mostrar el spinner para guardado manual */}
-            {isSaving && !isAddingRecord && (
-              <div className="dot-spinner">
-                <div className="dot-spinner__dot" />
-                <div className="dot-spinner__dot" />
-                <div className="dot-spinner__dot" />
-                <div className="dot-spinner__dot" />
-                <div className="dot-spinner__dot" />
-                <div className="dot-spinner__dot" />
-                <div className="dot-spinner__dot" />
-                <div className="dot-spinner__dot" />
-              </div>
-            )}
-          </div>
+
+          <button
+            onClick={handleSaveChanges}
+            disabled={!unsavedChanges || isSaving}
+            className="rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 disabled:opacity-50"
+          >
+            {isSaving
+              ? 'Guardando...'
+              : unsavedChanges
+                ? 'Guardar'
+                : 'Guardado'}
+          </button>
+
           <div className="ml-4 flex items-center gap-2">
             <button
               onClick={handleZoomOut}
@@ -1016,7 +1043,12 @@ export default function TransactionTable({
                           type="checkbox"
                           checked={rowsToDelete.has(row.id)}
                           onChange={() => handleDeleteSelect(row.id)}
-                          className="h-4 w-4 rounded border-gray-300"
+                          disabled={!canDelete(row)}
+                          className={`h-4 w-4 rounded border-gray-300 ${
+                            !canDelete(row)
+                              ? 'cursor-not-allowed opacity-50'
+                              : 'cursor-pointer'
+                          }`}
                         />
                       </div>
                     </td>

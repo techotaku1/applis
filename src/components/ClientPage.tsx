@@ -17,6 +17,7 @@ type TableView = 'services' | 'hours' | 'property-hours';
 
 export default function ClientPage() {
   const { user } = useUser();
+  const isAdmin = user?.publicMetadata?.role === 'admin';
   const [currentView, setCurrentView] = useState<TableView>('services');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
@@ -38,7 +39,7 @@ export default function ClientPage() {
   return (
     <main className="container mx-auto h-screen p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="ml-8 -mt-2 font-display text-3xl font-bold tracking-tight text-black">
+        <h1 className="font-display -mt-2 ml-8 text-3xl font-bold tracking-tight text-black">
           ¡Bienvenido, {user?.firstName ?? 'Usuario'}!
         </h1>
         <div className="flex gap-4">
@@ -72,12 +73,14 @@ export default function ClientPage() {
           >
             Resumen por Propiedad
           </button>
-          <button
-            onClick={() => setShowInvoiceModal(true)}
-            className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-          >
-            Generar Factura
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setShowInvoiceModal(true)}
+              className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+            >
+              Generar Factura
+            </button>
+          )}
         </div>
       </div>
 
