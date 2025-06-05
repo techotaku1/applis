@@ -100,11 +100,7 @@ const PropertySelect = ({
     >
       <option value="">Seleccionar propiedad</option>
       {properties.map((property) => (
-        <option 
-          key={property.id} 
-          value={property.id}
-          title={property.name}
-        >
+        <option key={property.id} value={property.id} title={property.name}>
           {property.name}
         </option>
       ))}
@@ -114,18 +110,61 @@ const PropertySelect = ({
 
 interface EmployeeSelectProps {
   value: string;
+  onChange: (employeeId: string) => void;
   employees: Employee[];
+  currentUser: { firstName?: string | null };
+  isAdmin?: boolean;
+  disabled?: boolean;
 }
 
-const EmployeeSelect = ({ value, employees }: EmployeeSelectProps) => {
+const EmployeeSelect = ({
+  value,
+  onChange,
+  employees,
+  currentUser,
+  isAdmin = false,
+  disabled = false,
+}: EmployeeSelectProps) => {
+  const currentEmployee = employees.find(
+    (e) => e.firstName?.toLowerCase() === currentUser?.firstName?.toLowerCase()
+  );
+
+  // Solo asignar automáticamente el empleado actual si no es admin y es un nuevo registro
+  useEffect(() => {
+    if (!isAdmin && currentEmployee && !value) {
+      onChange(currentEmployee.id);
+    }
+  }, [currentEmployee, onChange, value, isAdmin]);
+
+  // Si es un registro existente o es admin, mostrar el empleado asignado
   const assignedEmployee = employees.find((e) => e.id === value);
+
+  if (isAdmin) {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className={`table-select-field w-full ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+      >
+        <option value="">Seleccionar empleado</option>
+        {employees.map((employee) => (
+          <option key={employee.id} value={employee.id}>
+            {employee.firstName} {employee.lastName}
+          </option>
+        ))}
+      </select>
+    );
+  }
 
   return (
     <div className="relative w-full">
       <div className="table-select-field w-full text-center">
         {assignedEmployee
           ? `${assignedEmployee.firstName} ${assignedEmployee.lastName}`
-          : 'No asignado'}
+          : currentEmployee
+            ? `${currentEmployee.firstName} ${currentEmployee.lastName}`
+            : 'No encontrado'}
       </div>
     </div>
   );
@@ -190,7 +229,7 @@ function useEditPermissions() {
 
   return {
     canEdit: useCallback(
-      (record: CleaningService) => {
+      (record: CleaningService, _field?: keyof CleaningService) => {
         // Add validation to ensure record is not empty
         if (!record || typeof record !== 'object') {
           return { allowed: false, message: 'Registro no válido' };
@@ -203,6 +242,7 @@ function useEditPermissions() {
         today.setHours(0, 0, 0, 0);
         recordDate.setHours(0, 0, 0, 0);
 
+        // Past dates - block all edits including laundry and refresh
         if (recordDate.getTime() < today.getTime()) {
           return {
             allowed: false,
@@ -210,6 +250,7 @@ function useEditPermissions() {
           };
         }
 
+        // Additional permission checks for current and future dates
         if (!record.employeeId) return { allowed: true };
 
         if (record.employeeId !== userEmployeeId) {
@@ -262,7 +303,8 @@ export default function TransactionTable({
   initialData,
   onUpdateRecordAction,
 }: TransactionTableProps): React.JSX.Element {
-  const { canEdit, canDelete } = useEditPermissions();
+  const { user } = useUser();
+  const { canEdit, canDelete, isAdmin } = useEditPermissions(); // Add isAdmin here
 
   const [data, setData] = useState<CleaningService[]>(initialData);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -671,7 +713,19 @@ export default function TransactionTable({
 
       // Select de empleados
       if (field === 'employeeId') {
-        return <EmployeeSelect value={row.employeeId} employees={employees} />;
+        const editPermission = canEdit(row);
+        return (
+          <EmployeeSelect
+            value={row.employeeId}
+            onChange={(employeeId) =>
+              handleInputChange(row.id, 'employeeId', employeeId)
+            }
+            employees={employees}
+            currentUser={user ?? { firstName: null }}
+            isAdmin={isAdmin}
+            disabled={!editPermission.allowed}
+          />
+        );
       }
 
       // Input numérico para horas
@@ -692,9 +746,7 @@ export default function TransactionTable({
 
         return (
           <div className="relative flex items-center">
-            <span className="absolute left-2 text-black">
-              {currencySymbol}
-            </span>
+            <span className="absolute left-2 text-black">{currencySymbol}</span>
             <input
               type="number"
               value={row.laundryFee || ''}
@@ -760,7 +812,9 @@ export default function TransactionTable({
       properties,
       employees,
       handlePropertyChange,
-      canEdit, // Removed unnecessary dependencies: isAdmin and user
+      canEdit,
+      user,
+      isAdmin,
     ]
   );
 
