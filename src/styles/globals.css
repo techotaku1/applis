@@ -53,7 +53,8 @@
     margin: 0 auto;
   }
 
-  .table-numeric-field {
+  .table-numeric-field,
+  .invoice-input {
     @apply flex items-center justify-center;
     font-family: var(--font-table-text);
     font-optical-sizing: auto;
@@ -71,6 +72,15 @@
     width: 100%;
   }
 
+  .table-numeric-field::-webkit-inner-spin-button,
+  .table-numeric-field::-webkit-outer-spin-button,
+  .invoice-input::-webkit-inner-spin-button,
+  .invoice-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+  }
+
   .placa-field {
     @apply flex items-center justify-center;
     font-family: var(--font-table-text);
@@ -85,13 +95,6 @@
     color: black;
     text-align: center;
     margin: 0 auto;
-  }
-
-  .table-numeric-field::-webkit-inner-spin-button,
-  .table-numeric-field::-webkit-outer-spin-button {
-    appearance: none;
-    -webkit-appearance: none;
-    margin: 0;
   }
 
   .table-select-field {

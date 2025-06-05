@@ -110,61 +110,54 @@ const PropertySelect = ({
 
 interface EmployeeSelectProps {
   value: string;
-  onChange: (employeeId: string) => void;
   employees: Employee[];
   currentUser: { firstName?: string | null };
   isAdmin?: boolean;
-  disabled?: boolean;
+  serviceEmployeeId?: string;
 }
 
 const EmployeeSelect = ({
-  value,
-  onChange,
   employees,
   currentUser,
   isAdmin = false,
-  disabled = false,
+  serviceEmployeeId,
 }: EmployeeSelectProps) => {
+  // Si hay un employeeId en el servicio, mostrar ese empleado
+  if (serviceEmployeeId) {
+    const serviceEmployee = employees.find((e) => e.id === serviceEmployeeId);
+    if (serviceEmployee) {
+      return (
+        <div className="relative w-full">
+          <div className="table-select-field w-full text-center">
+            {`${serviceEmployee.firstName} ${serviceEmployee.lastName}`}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // Si no hay employeeId y es admin, mostrar el nombre del admin
+  if (isAdmin && !serviceEmployeeId) {
+    return (
+      <div className="relative w-full">
+        <div className="table-select-field w-full text-center">
+          {currentUser?.firstName ?? ''}
+        </div>
+      </div>
+    );
+  }
+
+  // Para empleados no admin, mostrar su propio nombre
   const currentEmployee = employees.find(
     (e) => e.firstName?.toLowerCase() === currentUser?.firstName?.toLowerCase()
   );
 
-  // Solo asignar automáticamente el empleado actual si no es admin y es un nuevo registro
-  useEffect(() => {
-    if (!isAdmin && currentEmployee && !value) {
-      onChange(currentEmployee.id);
-    }
-  }, [currentEmployee, onChange, value, isAdmin]);
-
-  // Si es un registro existente o es admin, mostrar el empleado asignado
-  const assignedEmployee = employees.find((e) => e.id === value);
-
-  if (isAdmin) {
-    return (
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className={`table-select-field w-full ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-      >
-        <option value="">Seleccionar empleado</option>
-        {employees.map((employee) => (
-          <option key={employee.id} value={employee.id}>
-            {employee.firstName} {employee.lastName}
-          </option>
-        ))}
-      </select>
-    );
-  }
-
   return (
     <div className="relative w-full">
       <div className="table-select-field w-full text-center">
-        {assignedEmployee
-          ? `${assignedEmployee.firstName} ${assignedEmployee.lastName}`
-          : currentEmployee
-            ? `${currentEmployee.firstName} ${currentEmployee.lastName}`
-            : 'No encontrado'}
+        {currentEmployee
+          ? `${currentEmployee.firstName} ${currentEmployee.lastName}`
+          : 'No encontrado'}
       </div>
     </div>
   );
@@ -303,7 +296,15 @@ export default function TransactionTable({
   initialData,
   onUpdateRecordAction,
 }: TransactionTableProps): React.JSX.Element {
-  const { user } = useUser();
+  const { isLoaded: isUserLoaded, user } = useUser();
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (isUserLoaded && user) {
+      setIsInitialized(true);
+    }
+  }, [isUserLoaded, user]);
+
   const { canEdit, canDelete, isAdmin } = useEditPermissions(); // Add isAdmin here
 
   const [data, setData] = useState<CleaningService[]>(initialData);
@@ -337,16 +338,22 @@ export default function TransactionTable({
       const colombiaDate = getCurrentColombiaDate();
       const results = await Promise.all([getProperties(), getEmployees()]);
       const firstProperty = results[0]?.[0];
-      const firstEmployee = results[1]?.[0];
+      const adminEmployee = employees.find(
+        (e) => e.firstName?.toLowerCase() === user?.firstName?.toLowerCase()
+      );
 
-      if (!firstProperty || !firstEmployee) {
-        throw new Error('No hay propiedades o empleados disponibles');
+      if (!firstProperty) {
+        throw new Error('No hay propiedades disponibles');
+      }
+
+      if (!adminEmployee) {
+        throw new Error('Error al identificar el administrador');
       }
 
       const newRow: CleaningService = {
         id: crypto.randomUUID(),
         propertyId: firstProperty.id,
-        employeeId: firstEmployee.id,
+        employeeId: adminEmployee.id, // Usar el ID del admin
         serviceDate: colombiaDate,
         workDate: colombiaDate,
         hoursWorked: 0,
@@ -361,21 +368,12 @@ export default function TransactionTable({
 
       const result = await createService(newRow);
       if (result.success) {
-        // Modificar esta parte para mantener el estado consistente
         setData((prevData) => {
-          // Crear una copia del nuevo registro para la UI
           const uiRow = {
             ...newRow,
-            employeeId: '', // Empty for UI to show "Seleccionar empleado"
+            employeeId: isAdmin ? '' : adminEmployee.id, // Para la UI, mostrar vacío si es admin
           };
-
-          // Agregar el nuevo registro al inicio del array
-          const newData = [uiRow, ...prevData];
-
-          // No es necesario llamar a handleSaveOperation aquí
-          // ya que createService ya guardó el registro
-
-          return newData;
+          return [uiRow, ...prevData];
         });
 
         // Update current page to today's date
@@ -713,17 +711,13 @@ export default function TransactionTable({
 
       // Select de empleados
       if (field === 'employeeId') {
-        const editPermission = canEdit(row);
         return (
           <EmployeeSelect
             value={row.employeeId}
-            onChange={(employeeId) =>
-              handleInputChange(row.id, 'employeeId', employeeId)
-            }
             employees={employees}
             currentUser={user ?? { firstName: null }}
             isAdmin={isAdmin}
-            disabled={!editPermission.allowed}
+            serviceEmployeeId={row.employeeId} // Añadir el employeeId del servicio
           />
         );
       }
@@ -741,22 +735,19 @@ export default function TransactionTable({
 
       // Campos adicionales: laundryFee y refreshFee
       if (field === 'laundryFee') {
-        const property = properties.find((p) => p.id === row.propertyId);
-        const currencySymbol = property?.rateType.includes('USD')
-          ? 'USD'
-          : 'FL';
-
         return (
-          <div className="relative flex items-center">
-            <span className="absolute left-2 text-black">{currencySymbol}</span>
+          <div className="flex items-center justify-center">
             <input
-              type="number"
-              value={row.laundryFee || ''}
+              type="checkbox"
+              checked={Boolean(row.laundryFee)}
               onChange={(e) =>
-                handleInputChange(row.id, 'laundryFee', Number(e.target.value))
+                handleInputChange(
+                  row.id,
+                  'laundryFee',
+                  e.target.checked ? 1 : 0
+                )
               }
-              className="table-numeric-field pl-8"
-              placeholder="0.00"
+              className="h-4 w-4 rounded border-gray-300"
               disabled={!canEdit(row)}
             />
           </div>
@@ -764,32 +755,22 @@ export default function TransactionTable({
       }
 
       if (field === 'refreshFee') {
-        const property = properties.find((p) => p.id === row.propertyId);
-        const options = property?.rateType.includes('USD')
-          ? [
-              { value: '20', label: '$ 20.00' },
-              { value: '50', label: '$ 50.00' },
-            ]
-          : [
-              { value: '20', label: 'FL 20.00' },
-              { value: '50', label: 'FL 50.00' },
-            ];
-
         return (
-          <select
-            value={row.refreshFee || ''}
-            onChange={(e) =>
-              handleInputChange(row.id, 'refreshFee', Number(e.target.value))
-            }
-            className="table-select-field"
-          >
-            <option value="">Seleccionar</option>
-            {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={Boolean(row.refreshFee)}
+              onChange={(e) =>
+                handleInputChange(
+                  row.id,
+                  'refreshFee',
+                  e.target.checked ? 1 : 0
+                )
+              }
+              className="h-4 w-4 rounded border-gray-300"
+              disabled={!canEdit(row)}
+            />
+          </div>
         );
       }
 
@@ -930,6 +911,11 @@ export default function TransactionTable({
   };
 
   const handleAddRecord = async () => {
+    if (!isInitialized || !isUserLoaded || !user) {
+      alert('Por favor espere mientras se carga la información del usuario');
+      return;
+    }
+
     setIsAddingRecord(true);
     try {
       await addNewRow();
@@ -938,6 +924,9 @@ export default function TransactionTable({
     }
   };
 
+  // Disable interactions until fully loaded
+  const isInteractionDisabled = !isInitialized || !isUserLoaded || !user;
+
   return (
     <div className="relative">
       <div className="mb-4 flex items-center justify-between">
@@ -945,7 +934,7 @@ export default function TransactionTable({
           {/* Botón agregar */}
           <button
             onClick={handleAddRecord}
-            disabled={isAddingRecord}
+            disabled={isAddingRecord || isInteractionDisabled}
             className="group relative flex h-10 w-36 cursor-pointer items-center overflow-hidden rounded-lg border border-green-500 bg-green-500 hover:bg-green-500 active:border-green-500 active:bg-green-500 disabled:opacity-50"
           >
             <span
@@ -1094,11 +1083,7 @@ export default function TransactionTable({
                           checked={rowsToDelete.has(row.id)}
                           onChange={() => handleDeleteSelect(row.id)}
                           disabled={!canDelete(row)}
-                          className={`h-4 w-4 rounded border-gray-300 ${
-                            !canDelete(row)
-                              ? 'cursor-not-allowed opacity-50'
-                              : 'cursor-pointer'
-                          }`}
+                          className={`h-4 w-4 rounded border-gray-300 ${!canDelete(row) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                         />
                       </div>
                     </td>
@@ -1126,12 +1111,6 @@ export default function TransactionTable({
                   </td>
                   <td className="table-cell whitespace-nowrap">
                     {renderInput(row, 'workDate', 'date')}
-                  </td>
-                  <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'laundryFee', 'number')}
-                  </td>
-                  <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'refreshFee', 'select')}
                   </td>
                 </tr>
               ))}

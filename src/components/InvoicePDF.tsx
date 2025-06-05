@@ -146,6 +146,38 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
+  feesSection: {
+    marginTop: 20,
+    marginBottom: 20,
+    paddingTop: 8,
+    borderTop: 1,
+    borderColor: '#e5e7eb',
+  },
+  feesRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 12, // Increased spacing between rows
+    paddingRight: 8,
+  },
+  feesLabel: {
+    fontSize: 10,
+    color: '#666',
+    marginRight: 20, // Added fixed spacing between label and amount
+    width: 100, // Fixed width for labels
+    textAlign: 'right',
+  },
+  feesAmount: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    width: 80, // Fixed width for amounts
+    textAlign: 'right',
+  },
+  totalAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 10,
+    textAlign: 'right',
+  },
 });
 
 interface InvoicePDFProps {
@@ -153,6 +185,12 @@ interface InvoicePDFProps {
   property: Property;
   startDate: Date;
   endDate: Date;
+  withTax?: boolean;
+  generalFees?: {
+    laundryFee: number;
+    refreshFee: number;
+    otherFee: number;
+  };
 }
 
 function calculateServiceAmount(
@@ -182,17 +220,25 @@ export function InvoicePDF({
   startDate,
   endDate,
   withTax = false,
-}: InvoicePDFProps & { withTax?: boolean }) {
+  generalFees,
+}: InvoicePDFProps) {
+  const currencySymbol = property.rateType.includes('USD') ? '$' : 'FL';
+
   // Calculate total amount including additional fees
   const totalAmount = services.reduce((sum, service) => {
     const serviceAmount = calculateServiceAmount(service, property);
-    const laundryFee = service.laundryFee || 0;
-    const refreshFee = service.refreshFee || 0;
-    return sum + serviceAmount + laundryFee + refreshFee;
+    return sum + serviceAmount;
   }, 0);
 
-  const tax = withTax ? totalAmount * 0.07 : 0;
-  const total = totalAmount + tax;
+  // Add general fees to total
+  const feesTotal =
+    (generalFees?.laundryFee ?? 0) +
+    (generalFees?.refreshFee ?? 0) +
+    (generalFees?.otherFee ?? 0);
+
+  const subtotal = totalAmount + feesTotal;
+  const tax = withTax ? subtotal * 0.07 : 0;
+  const total = subtotal + tax;
 
   return (
     <Document>
@@ -224,7 +270,6 @@ export function InvoicePDF({
           </Text>
         </View>
 
-        {/* Updated Services Table */}
         <View style={styles.mainTable}>
           <View style={styles.tableHeader}>
             <Text style={styles.col1}>DESCRIPTION</Text>
@@ -235,81 +280,72 @@ export function InvoicePDF({
 
           {services.map((service) => {
             const serviceAmount = calculateServiceAmount(service, property);
-            const hasLaundry = service.laundryFee > 0;
-            const hasRefresh = service.refreshFee > 0;
 
             return (
-              <React.Fragment key={service.id}>
-                <View style={styles.tableRow}>
-                  <Text style={styles.col1}>
-                    {new Date(service.serviceDate).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </Text>
-                  <Text style={styles.col2}>
-                    {formatTotalHours(service.hoursWorked)}
-                  </Text>
-                  <Text style={styles.col3}>
-                    {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
-                    {property.regularRate.toFixed(2)}
-                  </Text>
-                  <Text style={styles.col4}>
-                    {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
-                    {serviceAmount.toFixed(2)}
-                  </Text>
-                </View>
-                {(hasLaundry || hasRefresh) && (
-                  <View
-                    key={`${service.id}-extras`}
-                    style={styles.extraServicesRow}
-                  >
-                    <Text style={styles.col1}>Additional Services:</Text>
-                    <Text style={styles.col2} />
-                    <Text style={styles.col3} />
-                    <View style={styles.col4}>
-                      {hasLaundry && (
-                        <View style={styles.extraServiceItem}>
-                          <Text style={styles.extraServiceLabel}>Laundry:</Text>
-                          <Text style={styles.extraServiceAmount}>
-                            {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
-                            {service.laundryFee.toFixed(2)}
-                          </Text>
-                        </View>
-                      )}
-                      {hasRefresh && (
-                        <View style={styles.extraServiceItem}>
-                          <Text style={styles.extraServiceLabel}>Refresh:</Text>
-                          <Text style={styles.extraServiceAmount}>
-                            {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
-                            {service.refreshFee.toFixed(2)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                )}
-              </React.Fragment>
+              <View style={styles.tableRow} key={service.id}>
+                <Text style={styles.col1}>
+                  {new Date(service.serviceDate).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </Text>
+                <Text style={styles.col2}>
+                  {formatTotalHours(service.hoursWorked)}
+                </Text>
+                <Text style={styles.col3}>
+                  {currencySymbol} {property.regularRate.toFixed(2)}
+                </Text>
+                <Text style={styles.col4}>
+                  {currencySymbol} {serviceAmount.toFixed(2)}
+                </Text>
+              </View>
             );
           })}
         </View>
 
+        {/* Update General Fees Section */}
+        {generalFees && feesTotal > 0 && (
+          <View style={styles.feesSection}>
+            {generalFees.laundryFee > 0 && (
+              <View style={styles.feesRow}>
+                <Text style={styles.feesLabel}>Laundry Fee:</Text>
+                <Text style={styles.feesAmount}>
+                  {currencySymbol} {generalFees.laundryFee.toFixed(2)}
+                </Text>
+              </View>
+            )}
+            {generalFees.refreshFee > 0 && (
+              <View style={styles.feesRow}>
+                <Text style={styles.feesLabel}>Refresh Fee:</Text>
+                <Text style={styles.feesAmount}>
+                  {currencySymbol} {generalFees.refreshFee.toFixed(2)}
+                </Text>
+              </View>
+            )}
+            {generalFees.otherFee > 0 && (
+              <View style={styles.feesRow}>
+                <Text style={styles.feesLabel}>Other Fees:</Text>
+                <Text style={styles.feesAmount}>
+                  {currencySymbol} {generalFees.otherFee.toFixed(2)}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Updated Totals Section */}
         <View style={styles.totals}>
           <Text style={styles.totalLine}>
-            Subtotal: {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
-            {totalAmount.toFixed(2)}
+            Subtotal: {currencySymbol} {subtotal.toFixed(2)}
           </Text>
           {withTax && (
             <Text style={styles.totalLine}>
-              Tax (7%): {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
-              {tax.toFixed(2)}
+              Tax (7%): {currencySymbol} {tax.toFixed(2)}
             </Text>
           )}
-          <Text style={{ fontWeight: 'bold', fontSize: 14, marginTop: 10 }}>
-            TOTAL PAYABLE: {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
-            {total.toFixed(2)}
+          <Text style={styles.totalAmount}>
+            TOTAL PAYABLE: {currencySymbol} {total.toFixed(2)}
           </Text>
         </View>
 
