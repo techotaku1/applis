@@ -742,7 +742,7 @@ export default function TransactionTable({
       // Campos adicionales: laundryFee y refreshFee
       if (field === 'laundryFee') {
         const property = properties.find((p) => p.id === row.propertyId);
-        const currencySymbol = property?.rateType.includes('USD') ? '$' : 'FL';
+        const currencySymbol = property?.rateType.includes('USD') ? 'USD' : 'FL';
 
         return (
           <div className="relative flex items-center">
