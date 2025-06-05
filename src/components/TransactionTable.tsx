@@ -653,8 +653,8 @@ export default function TransactionTable({
       // For hoursWorked field, make it read-only since it's auto-calculated
       if (field === 'hoursWorked') {
         return (
-          <div className="flex items-center justify-center">
-            <span className="text-sm font-medium">
+          <div className="flex items-center justify-center text-black">
+            <span className="text-sm font-medium text-black">
               {formatHoursAndMinutes(Number(value ?? 0))}
             </span>
           </div>
@@ -742,7 +742,9 @@ export default function TransactionTable({
       // Campos adicionales: laundryFee y refreshFee
       if (field === 'laundryFee') {
         const property = properties.find((p) => p.id === row.propertyId);
-        const currencySymbol = property?.rateType.includes('USD') ? 'USD' : 'FL';
+        const currencySymbol = property?.rateType.includes('USD')
+          ? 'USD'
+          : 'FL';
 
         return (
           <div className="relative flex items-center">
