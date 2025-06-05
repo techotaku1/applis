@@ -31,8 +31,8 @@ export default function AuthLayout({
           <div className="absolute inset-0 bg-black/30" />
         </div>
       </div>
-      <div className="flex w-full items-center justify-center lg:w-1/2">
-        {children}
+      <div className="flex w-full items-center justify-center p-0 lg:w-1/2">
+        <div className="scale-90 transform">{children}</div>
       </div>
     </div>
   );
