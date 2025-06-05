@@ -38,12 +38,10 @@ export default function ClientPage() {
 
   return (
     <main className="container mx-auto h-screen p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="font-display -mt-2 ml-8 text-3xl font-bold tracking-tight text-black">
-          ¡Bienvenido, {user?.firstName ?? 'Usuario'}!
-        </h1>
+      <div className="mb-4 flex items-center justify-end">
         <div className="flex gap-4">
           <button
+            type="button"
             onClick={() => setCurrentView('services')}
             className={`rounded px-4 py-2 ${
               currentView === 'services'
@@ -54,6 +52,7 @@ export default function ClientPage() {
             Tabla de Servicios
           </button>
           <button
+            type="button"
             onClick={() => setCurrentView('hours')}
             className={`rounded px-4 py-2 ${
               currentView === 'hours'
@@ -64,6 +63,7 @@ export default function ClientPage() {
             Resumen por Empleado
           </button>
           <button
+            type="button"
             onClick={() => setCurrentView('property-hours')}
             className={`rounded px-4 py-2 ${
               currentView === 'property-hours'

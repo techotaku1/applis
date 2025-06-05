@@ -222,6 +222,7 @@ export default function InvoiceModal({
                         <th>Fecha</th>
                         <th>Horas</th>
                         <th>Monto</th>
+                        <th>Adicionales</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -235,6 +236,12 @@ export default function InvoiceModal({
                               )
                             : totals.property.regularRate;
 
+                        const hasLaundry = service.laundryFee > 0;
+                        const hasRefresh = service.refreshFee > 0;
+                        const currencySymbol = totals.rateType.includes('USD')
+                          ? '$'
+                          : 'FL';
+
                         return (
                           <tr key={service.id}>
                             <td>
@@ -246,8 +253,21 @@ export default function InvoiceModal({
                               {formatHoursAndMinutes(service.hoursWorked)}
                             </td>
                             <td>
-                              {totals.rateType.includes('USD') ? '$' : 'FL'}{' '}
-                              {serviceAmount.toFixed(2)}
+                              {currencySymbol} {serviceAmount.toFixed(2)}
+                            </td>
+                            <td>
+                              {hasLaundry && (
+                                <div className="mt-4">
+                                  Lavandería: {currencySymbol}{' '}
+                                  {service.laundryFee.toFixed(2)}
+                                </div>
+                              )}
+                              {hasRefresh && (
+                                <div>
+                                  Refresh: {currencySymbol}{' '}
+                                  {service.refreshFee.toFixed(2)}
+                                </div>
+                              )}
                             </td>
                           </tr>
                         );

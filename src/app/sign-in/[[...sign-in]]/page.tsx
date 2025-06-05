@@ -1,8 +1,22 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+
 import { SignIn } from '@clerk/nextjs';
 
 import AuthLayout from '~/components/AuthLayout';
 
 export default function Page() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <AuthLayout>
       <SignIn
@@ -21,7 +35,7 @@ export default function Page() {
             logoImage: {
               width: '150px',
               height: 'auto',
-            }
+            },
           },
         }}
       />

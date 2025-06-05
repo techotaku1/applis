@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 
 import ClientPage from '~/components/ClientPage';
+import Header from '~/components/Header';
 import { SWRProvider } from '~/components/SWRProvider';
 
 import Loading from './loading';
@@ -27,7 +28,10 @@ export default function HomePage() {
 
   return (
     <SWRProvider>
-      <ClientPage />
+      <Header />
+      <div className="pt-16">
+        <ClientPage />
+      </div>
     </SWRProvider>
   );
 }

@@ -1,7 +1,7 @@
 import { Delius, Lexend } from 'next/font/google';
 
 import { esMX } from '@clerk/localizations';
-import { UserButton, ClerkProvider } from '@clerk/nextjs';
+import { ClerkProvider } from '@clerk/nextjs';
 import { type Metadata } from 'next';
 
 import '~/styles/globals.css';
@@ -34,13 +34,8 @@ export default function RootLayout({
     <ClerkProvider localization={esMX}>
       <html lang="es-MX" className={`${delius.variable} ${lexend.variable}`}>
         <body>
-          <header className="fixed top-0 left-0 z-50 flex h-16 w-full items-center justify-between p-4">
-            <div className="flex items-center gap-4">
-              <UserButton />
-            </div>
-          </header>
           <Background />
-          {children}
+          <main>{children}</main>
         </body>
       </html>
     </ClerkProvider>

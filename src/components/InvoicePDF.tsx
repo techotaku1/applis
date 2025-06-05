@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import {
   Document,
   Page,
@@ -123,6 +125,27 @@ const styles = StyleSheet.create({
     marginTop: 5,
     color: '#666',
   },
+  extraServicesRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    padding: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  extraServiceItem: {
+    paddingVertical: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  extraServiceLabel: {
+    fontSize: 10,
+    color: '#666',
+    paddingRight: 8,
+  },
+  extraServiceAmount: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
 });
 
 interface InvoicePDFProps {
@@ -212,11 +235,12 @@ export function InvoicePDF({
 
           {services.map((service) => {
             const serviceAmount = calculateServiceAmount(service, property);
-            const hasExtras = service.laundryFee > 0 || service.refreshFee > 0;
+            const hasLaundry = service.laundryFee > 0;
+            const hasRefresh = service.refreshFee > 0;
 
             return (
-              <>
-                <View key={service.id} style={styles.tableRow}>
+              <React.Fragment key={service.id}>
+                <View style={styles.tableRow}>
                   <Text style={styles.col1}>
                     {new Date(service.serviceDate).toLocaleDateString('en-US', {
                       weekday: 'long',
@@ -236,22 +260,37 @@ export function InvoicePDF({
                     {serviceAmount.toFixed(2)}
                   </Text>
                 </View>
-                {hasExtras && (
+                {(hasLaundry || hasRefresh) && (
                   <View
-                    style={[styles.tableRow, { backgroundColor: '#f5f5f5' }]}
+                    key={`${service.id}-extras`}
+                    style={styles.extraServicesRow}
                   >
-                    <Text style={styles.col1}>Gastos Adicionales:</Text>
+                    <Text style={styles.col1}>Additional Services:</Text>
                     <Text style={styles.col2} />
                     <Text style={styles.col3} />
-                    <Text style={styles.col4}>
-                      {service.laundryFee > 0 &&
-                        `Lavandería: ${property.rateType.includes('USD') ? '$' : 'FL'} ${service.laundryFee}\n`}
-                      {service.refreshFee > 0 &&
-                        `Refresh: ${property.rateType.includes('USD') ? '$' : 'FL'} ${service.refreshFee}`}
-                    </Text>
+                    <View style={styles.col4}>
+                      {hasLaundry && (
+                        <View style={styles.extraServiceItem}>
+                          <Text style={styles.extraServiceLabel}>Laundry:</Text>
+                          <Text style={styles.extraServiceAmount}>
+                            {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
+                            {service.laundryFee.toFixed(2)}
+                          </Text>
+                        </View>
+                      )}
+                      {hasRefresh && (
+                        <View style={styles.extraServiceItem}>
+                          <Text style={styles.extraServiceLabel}>Refresh:</Text>
+                          <Text style={styles.extraServiceAmount}>
+                            {property.rateType.includes('USD') ? '$' : 'FL'}{' '}
+                            {service.refreshFee.toFixed(2)}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 )}
-              </>
+              </React.Fragment>
             );
           })}
         </View>
