@@ -172,7 +172,9 @@
   /* Contenedor de tabla con scroll */
   .table-container {
     @apply relative overflow-hidden rounded-lg shadow-md;
-    height: calc(92vh - 120px); /* Aumentado el espacio disponible */
+    height: calc(92vh - 120px);
+    background: url('/background-table.jpg') no-repeat center center;
+    background-size: cover;
   }
 
   .table-scroll-container {
@@ -273,11 +275,10 @@
     }
 
     .table-container {
-      max-height: calc(
-        100vh - 250px
-      ); /* Adjust height to leave space for controls */
+      max-height: calc(100vh - 200px);
       overflow-y: auto;
-      padding-bottom: 1rem;
+      background: none;
+      margin-bottom: 1rem;
     }
 
     .desktop-table {
@@ -288,9 +289,23 @@
       display: block;
     }
 
+    .mobile-table-row {
+      @apply flex flex-col border-b bg-white p-4;
+      margin-bottom: 0.5rem;
+    }
+
+    .mobile-table-row:last-child {
+      margin-bottom: 0.5rem;
+    }
+
+    /* Remove extra padding */
+    .block.overflow-y-auto.sm\:hidden .space-y-2 {
+      padding-bottom: 0.01rem;
+    }
+
     /* Ensure all fields are visible */
     .mobile-table-row:last-child {
-      margin-bottom: 4rem; /* Add extra space at bottom */
+      margin-bottom: 0.01rem; /* Add extra space at bottom */
     }
 
     /* Add scroll indicator */
