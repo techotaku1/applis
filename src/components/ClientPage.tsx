@@ -76,9 +76,9 @@ export default function ClientPage() {
           {isAdmin && (
             <button
               onClick={() => setShowInvoiceModal(true)}
-              className="flex-1 rounded bg-blue-500 px-3 py-1.5 text-sm text-white transition-colors duration-200 hover:bg-blue-600 sm:flex-none sm:px-4 sm:py-2 sm:text-base"
+              className="flex-1 rounded bg-blue-500 px-3 py-2.5 text-sm text-white transition-colors duration-200 hover:bg-blue-600 sm:flex-none sm:px-4 sm:py-2 sm:text-base"
             >
-              <span className="sm:hidden">Factura</span>
+              <span className="sm:hidden">Generar Factura</span>
               <span className="hidden sm:inline">Generar Factura</span>
             </button>
           )}

@@ -939,11 +939,11 @@ export default function TransactionTable({
           {isSaving ? 'Guardando...' : unsavedChanges ? 'Guardar' : 'Guardado'}
         </button>
 
-        <div className="flex w-full gap-2">
+        <div className="flex justify-center gap-2">
           <button
             onClick={handleAddRecord}
             disabled={isAddingRecord || isInteractionDisabled}
-            className="group relative flex h-10 flex-1 cursor-pointer items-center overflow-hidden rounded-lg border border-green-500 bg-green-500 hover:bg-green-500 active:border-green-500 active:bg-green-500 disabled:opacity-50"
+            className="group relative flex h-10 w-[150px] cursor-pointer items-center overflow-hidden rounded-lg border border-green-500 bg-green-500 hover:bg-green-500 active:border-green-500 active:bg-green-500 disabled:opacity-50"
           >
             <span
               className={`ml-8 transform font-semibold text-white transition-all duration-300 ${
@@ -982,7 +982,7 @@ export default function TransactionTable({
 
           <button
             onClick={handleDeleteModeToggle}
-            className="delete-button flex-1"
+            className="delete-button w-[150px]"
           >
             <span className="text">
               {isDeleteMode ? 'Cancelar' : 'Eliminar'}
@@ -1020,22 +1020,7 @@ export default function TransactionTable({
           </button>
         )}
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleZoomOut}
-            className="rounded bg-gray-500 px-3 py-1 text-white hover:bg-gray-600"
-          >
-            -
-          </button>
-          <span className="text-sm text-black">{Math.round(zoom * 100)}%</span>
-          <button
-            onClick={handleZoomIn}
-            className="rounded bg-gray-500 px-3 py-1 text-white hover:bg-gray-600"
-          >
-            +
-          </button>
-        </div>
-
+        {/* Remove zoom controls from mobile view */}
         <time className="font-display mb-4 text-xl font-extrabold text-black">
           {currentDate}
         </time>

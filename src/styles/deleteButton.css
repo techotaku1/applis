@@ -53,3 +53,22 @@
 .delete-button:active .icon svg {
   transform: scale(0.8);
 }
+
+@media (max-width: 640px) {
+  .delete-button {
+    width: 150px !important; /* Force width in mobile */
+  }
+
+  .delete-button .text {
+    transform: translateX(35px);
+    text-align: center;
+  }
+
+  .delete-button .icon {
+    transform: translateX(110px);
+  }
+
+  .delete-button:hover .icon {
+    width: 150px;
+  }
+}
