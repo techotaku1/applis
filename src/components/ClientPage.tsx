@@ -37,49 +37,48 @@ export default function ClientPage() {
   }
 
   return (
-    <main className="container mx-auto h-screen p-4">
-      <div className="relative z-10 mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2 sm:gap-4">
+    <main className="container mx-auto min-h-screen max-w-full p-2 sm:p-4">
+      <div className="relative z-10 mb-4">
+        {/* Contenedor principal de botones */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-4">
+          {/* Botones principales en grid de 2 columnas en móvil */}
           <button
             onClick={() => setCurrentView('services')}
-            className={`flex-1 rounded px-3 py-1.5 text-sm transition-colors duration-200 sm:flex-none sm:px-4 sm:py-2 sm:text-base ${
+            className={`rounded px-2 py-2 text-xs transition-colors duration-200 sm:px-4 sm:py-2 sm:text-base ${
               currentView === 'services'
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            <span className="sm:hidden">Servicios</span>
-            <span className="hidden sm:inline">Tabla de Servicios</span>
+            <span>Tabla de Servicios</span>
           </button>
           <button
             onClick={() => setCurrentView('hours')}
-            className={`flex-1 rounded px-3 py-1.5 text-sm transition-colors duration-200 sm:flex-none sm:px-4 sm:py-2 sm:text-base ${
+            className={`rounded px-2 py-2 text-xs transition-colors duration-200 sm:px-4 sm:py-2 sm:text-base ${
               currentView === 'hours'
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            <span className="sm:hidden">Empleados</span>
-            <span className="hidden sm:inline">Resumen por Empleado</span>
+            <span>Resumen por Empleado</span>
           </button>
           <button
             onClick={() => setCurrentView('property-hours')}
-            className={`flex-1 rounded px-3 py-1.5 text-sm transition-colors duration-200 sm:flex-none sm:px-4 sm:py-2 sm:text-base ${
+            className={`rounded px-2 py-2 text-xs transition-colors duration-200 sm:px-4 sm:py-2 sm:text-base ${
               currentView === 'property-hours'
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            <span className="sm:hidden">Propiedades</span>
-            <span className="hidden sm:inline">Resumen por Propiedad</span>
+            <span>Resumen por Propiedad</span>
           </button>
+          {/* Botón de factura en su propia fila en móvil */}
           {isAdmin && (
             <button
               onClick={() => setShowInvoiceModal(true)}
-              className="flex-1 rounded bg-blue-500 px-3 py-2.5 text-sm text-white transition-colors duration-200 hover:bg-blue-600 sm:flex-none sm:px-4 sm:py-2 sm:text-base"
+              className="col-span-2 mt-2 rounded bg-blue-500 px-2 py-2 text-xs text-white transition-colors duration-200 hover:bg-blue-600 sm:col-span-1 sm:mt-0 sm:px-4 sm:py-2 sm:text-base"
             >
-              <span className="sm:hidden">Generar Factura</span>
-              <span className="hidden sm:inline">Generar Factura</span>
+              <span>Generar Factura</span>
             </button>
           )}
         </div>

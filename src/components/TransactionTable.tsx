@@ -934,7 +934,7 @@ export default function TransactionTable({
         <button
           onClick={handleSaveChanges}
           disabled={!unsavedChanges || isSaving}
-          className="w-full rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 disabled:opacity-50"
+          className="w-full rounded bg-green-500 px-2 py-2 text-xs text-white hover:bg-green-600 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-base"
         >
           {isSaving ? 'Guardando...' : unsavedChanges ? 'Guardar' : 'Guardado'}
         </button>

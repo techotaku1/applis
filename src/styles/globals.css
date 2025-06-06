@@ -291,7 +291,7 @@
     .space-y-2.pb-4 {
       flex: 1;
       min-height: 0; /* Allow container to shrink */
-      margin-bottom: 0.05rem;
+      margin-bottom: 0;
     }
 
     .mobile-table-row:only-child {
@@ -317,12 +317,12 @@
 
     /* Remove extra padding */
     .block.overflow-y-auto.sm\:hidden .space-y-2 {
-      padding-bottom: 0.01rem;
+      padding-bottom: 0;
     }
 
     /* Ensure all fields are visible */
     .mobile-table-row:last-child {
-      margin-bottom: 0.01rem; /* Add extra space at bottom */
+      margin-bottom: 0; /* Add extra space at bottom */
     }
 
     /* Add scroll indicator */
