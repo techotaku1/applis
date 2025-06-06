@@ -831,7 +831,7 @@ export default function TransactionTable({
 
   // Add pagination controls component
   const Pagination = () => (
-    <div className="mt-4 flex justify-center gap-2">
+    <div className="mt-1 flex justify-center gap-2">
       <button
         onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
         disabled={currentPage === 1}
