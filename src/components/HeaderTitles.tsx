@@ -1,13 +1,15 @@
 export default function HeaderTitles({
   isDeleteMode = false,
+  isAdmin = false,
 }: {
   isDeleteMode?: boolean;
+  isAdmin?: boolean;
 }) {
   const tableHeaders = [
     'Hora Inicial',
     'Propiedad',
     'Cliente',
-    'Valor del Servicio',
+    ...(isAdmin ? ['Valor del Servicio'] : []),
     'Tiempo del Servicio',
     'Empleado',
     'Horas',

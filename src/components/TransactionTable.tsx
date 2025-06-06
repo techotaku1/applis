@@ -1166,7 +1166,7 @@ export default function TransactionTable({
             }}
           >
             <table className="w-full text-left text-sm text-gray-500">
-              <HeaderTitles isDeleteMode={isDeleteMode} />
+              <HeaderTitles isDeleteMode={isDeleteMode} isAdmin={isAdmin} />
               <tbody>
                 {paginatedData.map((row) => (
                   <tr key={row.id} className="border-b hover:bg-gray-50">
@@ -1192,9 +1192,11 @@ export default function TransactionTable({
                     <td className="table-cell whitespace-nowrap">
                       {getPropertyClientName(row.propertyId)}
                     </td>
-                    <td className="table-cell whitespace-nowrap">
-                      {renderInput(row, 'totalAmount', 'number')}
-                    </td>
+                    {isAdmin && (
+                      <td className="table-cell whitespace-nowrap">
+                        {renderInput(row, 'totalAmount', 'number')}
+                      </td>
+                    )}
                     <td className="table-checkbox-cell whitespace-nowrap">
                       {renderInput(row, 'isRefreshService', 'checkbox')}
                     </td>
@@ -1217,8 +1219,6 @@ export default function TransactionTable({
         {/* Mobile Table */}
         <div className="block overflow-y-auto sm:hidden">
           <div className="space-y-2 pb-4">
-            {' '}
-            {/* Add padding at bottom of container */}
             {paginatedData.map((row) => (
               <div key={row.id} className="mobile-table-row">
                 <div className="space-y-3">
@@ -1242,7 +1242,7 @@ export default function TransactionTable({
                   </div>
                   <div className="mobile-table-cell">
                     <span className="font-medium">Propiedad</span>
-                    <div className="w-[140px]">
+                    <div className="w-[180px]">
                       {renderInput(row, 'propertyId')}
                     </div>
                   </div>
@@ -1252,12 +1252,14 @@ export default function TransactionTable({
                       {getPropertyClientName(row.propertyId)}
                     </span>
                   </div>
-                  <div className="mobile-table-cell">
-                    <span className="font-medium">Valor</span>
-                    <div className="w-[140px]">
-                      {renderInput(row, 'totalAmount', 'number')}
+                  {isAdmin && (
+                    <div className="mobile-table-cell">
+                      <span className="font-medium">Valor</span>
+                      <div className="w-[140px]">
+                        {renderInput(row, 'totalAmount', 'number')}
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div className="mobile-table-cell">
                     <span className="font-medium">Tiempo</span>
                     <div className="w-[140px]">
@@ -1266,7 +1268,7 @@ export default function TransactionTable({
                   </div>
                   <div className="mobile-table-cell">
                     <span className="font-medium">Empleado</span>
-                    <div className="w-[140px]">
+                    <div className="w-[180px]">
                       {renderInput(row, 'employeeId')}
                     </div>
                   </div>
