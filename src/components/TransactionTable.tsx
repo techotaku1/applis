@@ -1230,55 +1230,77 @@ export default function TransactionTable({
         </div>
 
         {/* Mobile Table */}
-        <div className="block sm:hidden">
-          {paginatedData.map((row) => (
-            <div key={row.id} className="mobile-table-row">
-              {isDeleteMode && (
-                <div className="mobile-table-cell">
-                  <span className="font-medium">Eliminar</span>
-                  <input
-                    type="checkbox"
-                    checked={rowsToDelete.has(row.id)}
-                    onChange={() => handleDeleteSelect(row.id)}
-                    disabled={!canDelete(row)}
-                    className={`h-5 w-5 rounded border-gray-300 ${!canDelete(row) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                  />
+        <div className="block overflow-y-auto sm:hidden">
+          <div className="space-y-2 pb-4">
+            {' '}
+            {/* Add padding at bottom of container */}
+            {paginatedData.map((row) => (
+              <div key={row.id} className="mobile-table-row">
+                <div className="space-y-3">
+                  {isDeleteMode && (
+                    <div className="mobile-table-cell">
+                      <span className="font-medium">Eliminar</span>
+                      <input
+                        type="checkbox"
+                        checked={rowsToDelete.has(row.id)}
+                        onChange={() => handleDeleteSelect(row.id)}
+                        disabled={!canDelete(row)}
+                        className={`h-5 w-5 rounded border-gray-300 ${!canDelete(row) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                      />
+                    </div>
+                  )}
+                  <div className="mobile-table-cell">
+                    <span className="font-medium">Hora Inicial</span>
+                    <div className="w-[170px]">
+                      {renderInput(row, 'serviceDate', 'date')}
+                    </div>
+                  </div>
+                  <div className="mobile-table-cell">
+                    <span className="font-medium">Propiedad</span>
+                    <div className="w-[140px]">
+                      {renderInput(row, 'propertyId')}
+                    </div>
+                  </div>
+                  <div className="mobile-table-cell">
+                    <span className="font-medium">Cliente</span>
+                    <span className="w-[140px] text-right">
+                      {getPropertyClientName(row.propertyId)}
+                    </span>
+                  </div>
+                  <div className="mobile-table-cell">
+                    <span className="font-medium">Valor</span>
+                    <div className="w-[140px]">
+                      {renderInput(row, 'totalAmount', 'number')}
+                    </div>
+                  </div>
+                  <div className="mobile-table-cell">
+                    <span className="font-medium">Tiempo</span>
+                    <div className="w-[140px]">
+                      {renderInput(row, 'isRefreshService', 'checkbox')}
+                    </div>
+                  </div>
+                  <div className="mobile-table-cell">
+                    <span className="font-medium">Empleado</span>
+                    <div className="w-[140px]">
+                      {renderInput(row, 'employeeId')}
+                    </div>
+                  </div>
+                  <div className="mobile-table-cell">
+                    <span className="font-medium">Horas</span>
+                    <div className="w-[140px]">
+                      {renderInput(row, 'hoursWorked', 'number')}
+                    </div>
+                  </div>
+                  <div className="mobile-table-cell">
+                    <span className="font-medium">Hora Final</span>
+                    <div className="w-[170px]">
+                      {renderInput(row, 'workDate', 'date')}
+                    </div>
+                  </div>
                 </div>
-              )}
-              <div className="mobile-table-cell">
-                <span className="w-[300px] font-medium">Hora Inicial</span>
-                {renderInput(row, 'serviceDate', 'date')}
               </div>
-              <div className="mobile-table-cell">
-                <span className="font-medium">Propiedad</span>
-                {renderInput(row, 'propertyId')}
-              </div>
-              <div className="mobile-table-cell">
-                <span className="font-medium">Cliente</span>
-                <span>{getPropertyClientName(row.propertyId)}</span>
-              </div>
-              <div className="mobile-table-cell">
-                <span className="font-medium">Valor</span>
-                {renderInput(row, 'totalAmount', 'number')}
-              </div>
-              <div className="mobile-table-cell">
-                <span className="font-medium">Tiempo</span>
-                {renderInput(row, 'isRefreshService', 'checkbox')}
-              </div>
-              <div className="mobile-table-cell">
-                <span className="w-[190px] font-medium">Empleado</span>
-                {renderInput(row, 'employeeId')}
-              </div>
-              <div className="mobile-table-cell">
-                <span className="font-medium">Horas</span>
-                {renderInput(row, 'hoursWorked', 'number')}
-              </div>
-              <div className="mobile-table-cell">
-                <span className="w-[300px] font-medium">Hora Final</span>
-                {renderInput(row, 'workDate', 'date')}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
