@@ -38,14 +38,11 @@ export default function ClientPage() {
 
   return (
     <main className="container mx-auto h-screen p-4">
-      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
-        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-black sm:-mt-2 sm:ml-8">
-          ¡Bienvenido, {user?.firstName ?? 'Usuario'}!
-        </h1>
+      <div className="relative z-10 mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2 sm:gap-4">
           <button
             onClick={() => setCurrentView('services')}
-            className={`flex-1 sm:flex-none rounded px-3 py-1.5 sm:px-4 sm:py-2 transition-colors duration-200 text-sm sm:text-base ${
+            className={`flex-1 rounded px-3 py-1.5 text-sm transition-colors duration-200 sm:flex-none sm:px-4 sm:py-2 sm:text-base ${
               currentView === 'services'
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -56,7 +53,7 @@ export default function ClientPage() {
           </button>
           <button
             onClick={() => setCurrentView('hours')}
-            className={`flex-1 sm:flex-none rounded px-3 py-1.5 sm:px-4 sm:py-2 transition-colors duration-200 text-sm sm:text-base ${
+            className={`flex-1 rounded px-3 py-1.5 text-sm transition-colors duration-200 sm:flex-none sm:px-4 sm:py-2 sm:text-base ${
               currentView === 'hours'
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -67,7 +64,7 @@ export default function ClientPage() {
           </button>
           <button
             onClick={() => setCurrentView('property-hours')}
-            className={`flex-1 sm:flex-none rounded px-3 py-1.5 sm:px-4 sm:py-2 transition-colors duration-200 text-sm sm:text-base ${
+            className={`flex-1 rounded px-3 py-1.5 text-sm transition-colors duration-200 sm:flex-none sm:px-4 sm:py-2 sm:text-base ${
               currentView === 'property-hours'
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -79,7 +76,7 @@ export default function ClientPage() {
           {isAdmin && (
             <button
               onClick={() => setShowInvoiceModal(true)}
-              className="flex-1 sm:flex-none rounded bg-blue-500 px-3 py-1.5 sm:px-4 sm:py-2 text-white transition-colors duration-200 hover:bg-blue-600 text-sm sm:text-base"
+              className="flex-1 rounded bg-blue-500 px-3 py-1.5 text-sm text-white transition-colors duration-200 hover:bg-blue-600 sm:flex-none sm:px-4 sm:py-2 sm:text-base"
             >
               <span className="sm:hidden">Factura</span>
               <span className="hidden sm:inline">Generar Factura</span>

@@ -929,7 +929,120 @@ export default function TransactionTable({
 
   return (
     <div className="relative">
-      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Mobile Controls */}
+      <div className="flex flex-col items-center gap-4 sm:hidden">
+        <button
+          onClick={handleSaveChanges}
+          disabled={!unsavedChanges || isSaving}
+          className="w-full rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 disabled:opacity-50"
+        >
+          {isSaving ? 'Guardando...' : unsavedChanges ? 'Guardar' : 'Guardado'}
+        </button>
+
+        <div className="flex w-full gap-2">
+          <button
+            onClick={handleAddRecord}
+            disabled={isAddingRecord || isInteractionDisabled}
+            className="group relative flex h-10 flex-1 cursor-pointer items-center overflow-hidden rounded-lg border border-green-500 bg-green-500 hover:bg-green-500 active:border-green-500 active:bg-green-500 disabled:opacity-50"
+          >
+            <span
+              className={`ml-8 transform font-semibold text-white transition-all duration-300 ${
+                isAddingRecord
+                  ? 'translate-x-20 opacity-0'
+                  : 'group-hover:translate-x-20 group-hover:opacity-0'
+              }`}
+            >
+              Agregar
+            </span>
+            <span
+              className={`absolute right-0 flex h-full w-10 transform items-center justify-center rounded-lg bg-green-500 transition-all duration-300 group-hover:w-full group-hover:translate-x-0 ${
+                isAddingRecord ? 'w-full translate-x-0' : ''
+              }`}
+            >
+              {isAddingRecord ? (
+                <div className="loader" />
+              ) : (
+                <svg
+                  className="w-8 text-white group-active:scale-[0.8]"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                >
+                  <line x1="12" x2="12" y1="5" y2="19" />
+                  <line x1="5" x2="19" y1="12" y2="12" />
+                </svg>
+              )}
+            </span>
+          </button>
+
+          <button
+            onClick={handleDeleteModeToggle}
+            className="delete-button flex-1"
+          >
+            <span className="text">
+              {isDeleteMode ? 'Cancelar' : 'Eliminar'}
+            </span>
+            <span className="icon">
+              {isDeleteMode ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M24 20.188l-8.315-8.209 8.2-8.282-3.697-3.697-8.212 8.318-8.31-8.203-3.666 3.666 8.321 8.24-8.206 8.313 3.666 3.666 8.237-8.318 8.285 8.203z" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M3 6v18h18v-18h-18zm5 14c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm5 0c0 .552-.448 1-1 1s-1-.448-1-1v-10c0-.552.448-1 1-1s1 .448 1 1v10zm4-18v2h-20v-2h5.711c.9 0 1.631-1.099 1.631-2h5.315c0 .901.73 2 1.631 2h5.712z" />
+                </svg>
+              )}
+            </span>
+          </button>
+        </div>
+
+        {isDeleteMode && rowsToDelete.size > 0 && (
+          <button
+            onClick={handleDeleteSelected}
+            className="w-full rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+          >
+            Eliminar ({rowsToDelete.size})
+          </button>
+        )}
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleZoomOut}
+            className="rounded bg-gray-500 px-3 py-1 text-white hover:bg-gray-600"
+          >
+            -
+          </button>
+          <span className="text-sm text-black">{Math.round(zoom * 100)}%</span>
+          <button
+            onClick={handleZoomIn}
+            className="rounded bg-gray-500 px-3 py-1 text-white hover:bg-gray-600"
+          >
+            +
+          </button>
+        </div>
+
+        <time className="font-display mb-4 text-xl font-extrabold text-black">
+          {currentDate}
+        </time>
+      </div>
+
+      {/* Desktop Controls - Keep existing layout */}
+      <div className="mb-4 hidden sm:flex sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           {/* Botón agregar */}
           <button
@@ -1052,9 +1165,9 @@ export default function TransactionTable({
         </div>
       </div>
 
-      {/* Table container with mobile support */}
+      {/* Table Container */}
       <div className="table-container">
-        {/* Desktop table */}
+        {/* Desktop Table */}
         <div className="hidden sm:block">
           <div
             className="table-scroll-container"
@@ -1116,58 +1229,60 @@ export default function TransactionTable({
           </div>
         </div>
 
-        {/* Mobile table */}
-        <div className="block overflow-y-auto sm:hidden">
+        {/* Mobile Table */}
+        <div className="block sm:hidden">
           {paginatedData.map((row) => (
             <div key={row.id} className="mobile-table-row">
               {isDeleteMode && (
                 <div className="mobile-table-cell">
-                  <span className="mobile-table-label">Eliminar</span>
+                  <span className="font-medium">Eliminar</span>
                   <input
                     type="checkbox"
                     checked={rowsToDelete.has(row.id)}
                     onChange={() => handleDeleteSelect(row.id)}
                     disabled={!canDelete(row)}
-                    className={`h-4 w-4 rounded border-gray-300 ${!canDelete(row) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                    className={`h-5 w-5 rounded border-gray-300 ${!canDelete(row) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                   />
                 </div>
               )}
               <div className="mobile-table-cell">
-                <span className="mobile-table-label">Hora Inicial</span>
+                <span className="w-[300px] font-medium">Hora Inicial</span>
                 {renderInput(row, 'serviceDate', 'date')}
               </div>
               <div className="mobile-table-cell">
-                <span className="mobile-table-label">Propiedad</span>
+                <span className="font-medium">Propiedad</span>
                 {renderInput(row, 'propertyId')}
               </div>
               <div className="mobile-table-cell">
-                <span className="mobile-table-label">Cliente</span>
+                <span className="font-medium">Cliente</span>
                 <span>{getPropertyClientName(row.propertyId)}</span>
               </div>
               <div className="mobile-table-cell">
-                <span className="mobile-table-label">Valor</span>
+                <span className="font-medium">Valor</span>
                 {renderInput(row, 'totalAmount', 'number')}
               </div>
               <div className="mobile-table-cell">
-                <span className="mobile-table-label">Tiempo</span>
+                <span className="font-medium">Tiempo</span>
                 {renderInput(row, 'isRefreshService', 'checkbox')}
               </div>
               <div className="mobile-table-cell">
-                <span className="mobile-table-label">Empleado</span>
+                <span className="w-[190px] font-medium">Empleado</span>
                 {renderInput(row, 'employeeId')}
               </div>
               <div className="mobile-table-cell">
-                <span className="mobile-table-label">Horas</span>
+                <span className="font-medium">Horas</span>
                 {renderInput(row, 'hoursWorked', 'number')}
               </div>
               <div className="mobile-table-cell">
-                <span className="mobile-table-label">Hora Final</span>
+                <span className="w-[300px] font-medium">Hora Final</span>
                 {renderInput(row, 'workDate', 'date')}
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Pagination */}
       <Pagination />
     </div>
   );
