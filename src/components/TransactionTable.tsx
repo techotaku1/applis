@@ -929,13 +929,13 @@ export default function TransactionTable({
 
   return (
     <div className="relative">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           {/* Botón agregar */}
           <button
             onClick={handleAddRecord}
             disabled={isAddingRecord || isInteractionDisabled}
-            className="group relative flex h-10 w-36 cursor-pointer items-center overflow-hidden rounded-lg border border-green-500 bg-green-500 hover:bg-green-500 active:border-green-500 active:bg-green-500 disabled:opacity-50"
+            className="group relative flex h-8 w-full cursor-pointer items-center overflow-hidden rounded-lg border border-green-500 bg-green-500 hover:bg-green-500 active:border-green-500 active:bg-green-500 disabled:opacity-50 sm:h-10 sm:w-36"
           >
             <span
               className={`ml-8 transform font-semibold text-white transition-all duration-300 ${
@@ -973,7 +973,10 @@ export default function TransactionTable({
           </button>
 
           {/* Mostrar botón eliminar */}
-          <button onClick={handleDeleteModeToggle} className="delete-button">
+          <button
+            onClick={handleDeleteModeToggle}
+            className="delete-button w-full sm:w-auto"
+          >
             <span className="text">
               {isDeleteMode ? 'Cancelar' : 'Eliminar'}
             </span>
@@ -1003,7 +1006,7 @@ export default function TransactionTable({
           {isDeleteMode && rowsToDelete.size > 0 && (
             <button
               onClick={handleDeleteSelected}
-              className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+              className="w-full rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700 sm:w-auto"
             >
               Eliminar ({rowsToDelete.size})
             </button>
@@ -1012,7 +1015,7 @@ export default function TransactionTable({
           <button
             onClick={handleSaveChanges}
             disabled={!unsavedChanges || isSaving}
-            className="rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 disabled:opacity-50"
+            className="w-full rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 disabled:opacity-50 sm:w-auto"
           >
             {isSaving
               ? 'Guardando...'
@@ -1020,8 +1023,10 @@ export default function TransactionTable({
                 ? 'Guardar'
                 : 'Guardado'}
           </button>
+        </div>
 
-          <div className="ml-4 flex items-center gap-2">
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-4">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleZoomOut}
               className="rounded bg-gray-500 px-3 py-1 text-white hover:bg-gray-600"
@@ -1040,82 +1045,127 @@ export default function TransactionTable({
               +
             </button>
           </div>
+
+          <time className="font-display text-xl font-extrabold text-black sm:text-3xl">
+            {currentDate}
+          </time>
         </div>
-        <time className="font-display text-3xl font-extrabold text-black">
-          {currentDate}
-        </time>
       </div>
 
-      {/* ...rest of the component... */}
-      {/* Modificar la sección de la tabla */}
-      <div
-        className="table-container"
-        style={{
-          backgroundImage: 'url("/background-table.jpg")',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          borderRadius: '8px',
-          padding: '1rem',
-        }}
-      >
-        <div
-          className="table-scroll-container"
-          style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: 'left top',
-            width: `${(1 / zoom) * 100}%`,
-            height: `${(1 / zoom) * 100}%`,
-            overflowX: zoom === 1 ? 'auto' : 'scroll',
-            overflowY: 'auto',
-          }}
-        >
-          <table className="w-full text-left text-sm text-gray-500">
-            <HeaderTitles isDeleteMode={isDeleteMode} />
-            <tbody>
-              {paginatedData.map((row) => (
-                <tr key={row.id} className="border-b hover:bg-gray-50">
-                  {isDeleteMode && (
-                    <td className="border-r px-0.5 py-0.5 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center">
-                        <input
-                          type="checkbox"
-                          checked={rowsToDelete.has(row.id)}
-                          onChange={() => handleDeleteSelect(row.id)}
-                          disabled={!canDelete(row)}
-                          className={`h-4 w-4 rounded border-gray-300 ${!canDelete(row) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                        />
-                      </div>
+      {/* Table container with mobile support */}
+      <div className="table-container">
+        {/* Desktop table */}
+        <div className="hidden sm:block">
+          <div
+            className="table-scroll-container"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'left top',
+              width: `${(1 / zoom) * 100}%`,
+              height: `${(1 / zoom) * 100}%`,
+              overflowX: zoom === 1 ? 'auto' : 'scroll',
+              overflowY: 'auto',
+            }}
+          >
+            <table className="w-full text-left text-sm text-gray-500">
+              <HeaderTitles isDeleteMode={isDeleteMode} />
+              <tbody>
+                {paginatedData.map((row) => (
+                  <tr key={row.id} className="border-b hover:bg-gray-50">
+                    {isDeleteMode && (
+                      <td className="border-r px-0.5 py-0.5 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={rowsToDelete.has(row.id)}
+                            onChange={() => handleDeleteSelect(row.id)}
+                            disabled={!canDelete(row)}
+                            className={`h-4 w-4 rounded border-gray-300 ${!canDelete(row) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                          />
+                        </div>
+                      </td>
+                    )}
+                    <td className="table-cell whitespace-nowrap">
+                      {renderInput(row, 'serviceDate', 'date')}
                     </td>
-                  )}
-                  <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'serviceDate', 'date')}
-                  </td>
-                  <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'propertyId')}
-                  </td>
-                  <td className="table-cell whitespace-nowrap">
-                    {getPropertyClientName(row.propertyId)}
-                  </td>
-                  <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'totalAmount', 'number')}
-                  </td>
-                  <td className="table-checkbox-cell whitespace-nowrap">
-                    {renderInput(row, 'isRefreshService', 'checkbox')}
-                  </td>
-                  <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'employeeId')}
-                  </td>
-                  <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'hoursWorked', 'number')}
-                  </td>
-                  <td className="table-cell whitespace-nowrap">
-                    {renderInput(row, 'workDate', 'date')}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td className="table-cell whitespace-nowrap">
+                      {renderInput(row, 'propertyId')}
+                    </td>
+                    <td className="table-cell whitespace-nowrap">
+                      {getPropertyClientName(row.propertyId)}
+                    </td>
+                    <td className="table-cell whitespace-nowrap">
+                      {renderInput(row, 'totalAmount', 'number')}
+                    </td>
+                    <td className="table-checkbox-cell whitespace-nowrap">
+                      {renderInput(row, 'isRefreshService', 'checkbox')}
+                    </td>
+                    <td className="table-cell whitespace-nowrap">
+                      {renderInput(row, 'employeeId')}
+                    </td>
+                    <td className="table-cell whitespace-nowrap">
+                      {renderInput(row, 'hoursWorked', 'number')}
+                    </td>
+                    <td className="table-cell whitespace-nowrap">
+                      {renderInput(row, 'workDate', 'date')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Mobile table */}
+        <div className="block overflow-y-auto sm:hidden">
+          {paginatedData.map((row) => (
+            <div key={row.id} className="mobile-table-row">
+              {isDeleteMode && (
+                <div className="mobile-table-cell">
+                  <span className="mobile-table-label">Eliminar</span>
+                  <input
+                    type="checkbox"
+                    checked={rowsToDelete.has(row.id)}
+                    onChange={() => handleDeleteSelect(row.id)}
+                    disabled={!canDelete(row)}
+                    className={`h-4 w-4 rounded border-gray-300 ${!canDelete(row) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                  />
+                </div>
+              )}
+              <div className="mobile-table-cell">
+                <span className="mobile-table-label">Hora Inicial</span>
+                {renderInput(row, 'serviceDate', 'date')}
+              </div>
+              <div className="mobile-table-cell">
+                <span className="mobile-table-label">Propiedad</span>
+                {renderInput(row, 'propertyId')}
+              </div>
+              <div className="mobile-table-cell">
+                <span className="mobile-table-label">Cliente</span>
+                <span>{getPropertyClientName(row.propertyId)}</span>
+              </div>
+              <div className="mobile-table-cell">
+                <span className="mobile-table-label">Valor</span>
+                {renderInput(row, 'totalAmount', 'number')}
+              </div>
+              <div className="mobile-table-cell">
+                <span className="mobile-table-label">Tiempo</span>
+                {renderInput(row, 'isRefreshService', 'checkbox')}
+              </div>
+              <div className="mobile-table-cell">
+                <span className="mobile-table-label">Empleado</span>
+                {renderInput(row, 'employeeId')}
+              </div>
+              <div className="mobile-table-cell">
+                <span className="mobile-table-label">Horas</span>
+                {renderInput(row, 'hoursWorked', 'number')}
+              </div>
+              <div className="mobile-table-cell">
+                <span className="mobile-table-label">Hora Final</span>
+                {renderInput(row, 'workDate', 'date')}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
       <Pagination />
